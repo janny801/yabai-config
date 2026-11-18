@@ -199,6 +199,7 @@ fi
 win=$(yabai -m query --windows --window)
 is_floating=$(echo "$win" | jq '.["is-floating"]')
 cur_x=$(echo "$win" | jq '.frame.x | floor')
+cur_y=$(echo "$win" | jq '.frame.y | floor')
 cur_w=$(echo "$win" | jq '.frame.w | floor')
 
 # Ensure window is floating without moving it

@@ -34,8 +34,8 @@ alt - 9 : ~/.config/yabai/focus-window.sh 8
 shift + cmd - j : ~/.config/yabai/window-place.sh left-half
 shift + cmd - k : ~/.config/yabai/window-place.sh right-half
 
-# Top Half / Bottom Half (0x27 is ', 0x2F is /)
-shift + cmd - 0x27 : ~/.config/yabai/window-place.sh top-half
+# Top Half / Bottom Half (0x2B is ,, 0x2F is .)
+shift + cmd - 0x2B : ~/.config/yabai/window-place.sh top-half
 shift + cmd - 0x2F : ~/.config/yabai/window-place.sh bottom-half
 
 # Maximize (works reliably in both float and bsp)
@@ -53,7 +53,7 @@ ctrl + alt - backspace : yabai -m window --toggle zoom-fullscreen 2>/dev/null ||
 # Make Smaller / Make Larger / Minimum Size
 shift + cmd - down : yabai -m window --resize bottom:0:-40 2>/dev/null || yabai -m window --resize top:0:40 2>/dev/null || yabai -m window --resize right:-40:0
 ctrl + alt - 0x18  : yabai -m window --resize bottom:0:40 2>/dev/null || yabai -m window --resize top:0:-40 2>/dev/null || yabai -m window --resize right:40:0 # 0x18 is =
-shift + cmd - 0x2B : ~/.config/yabai/window-place.sh smallest # 0x2B is ,
+shift + cmd - 0x2A : ~/.config/yabai/window-place.sh smallest # 0x2A is \
 
 # First Third / Center Third / Last Third / First Two Thirds / Last Two Thirds
 ctrl + alt - d  : ~/.config/yabai/window-place.sh first-third

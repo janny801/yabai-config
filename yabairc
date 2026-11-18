@@ -21,9 +21,9 @@ yabai -m config split_ratio                  0.50
 # External bar clearance (sketchybar height 28 on all displays)
 yabai -m config external_bar                 all:28:0
 
-# Padding & Gaps (bottom clears dock/screen edge; gaps around windows)
-yabai -m config top_padding                  0
-yabai -m config bottom_padding               11
+# Padding & Gaps (8 top padding below sketchybar, 10 bottom/left/right/gap for clean symmetry)
+yabai -m config top_padding                  8
+yabai -m config bottom_padding               10
 yabai -m config left_padding                 10
 yabai -m config right_padding                10
 yabai -m config window_gap                   10

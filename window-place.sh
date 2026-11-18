@@ -50,11 +50,16 @@ elif action == "top-half":
 elif action == "bottom-half":
     target_dir = "bottom"
     fraction = 0.5
-elif action == "first-third":
-    target_dir = "left"
-    fraction = 1.0 / 3.0
-elif action == "last-third":
-    target_dir = "right"
+elif action in ["first-third", "last-third", "cycle-third"]:
+    # Cycle between left third and right third (similar to first-two-thirds cycling)
+    cur_w = cur_win["frame"]["w"]
+    cur_x = cur_win["frame"]["x"]
+    is_third = cur_w < disp_frame["w"] * 0.45
+    is_right = cur_x > disp_frame["w"] * 0.45
+    if is_third and is_right:
+        target_dir = "left"
+    else:
+        target_dir = "right"
     fraction = 1.0 / 3.0
 elif action in ["first-two-thirds", "two-thirds", "cycle-two-thirds"]:
     # Check if currently left two-thirds -> cycle to right two-thirds
@@ -233,24 +238,27 @@ case "$ACTION" in
     y=$(( USABLE_Y + h + GAP ))
     apply_geometry $x $y $w $h
     ;;
-  "first-third")
-    w=$(( (dw - GAP * 4) / 3 ))
+  "first-third"|"last-third"|"cycle-third")
+    unit=$(( (dw - GAP * 4) / 3 ))
     h=$(( USABLE_H - GAP ))
-    x=$(( dx + GAP ))
+    x_left=$(( dx + GAP ))
+    x_right=$(( dx + GAP * 3 + unit * 2 ))
+    
+    diff_right=$(abs $(( cur_x - x_right )))
+    diff_w=$(abs $(( cur_w - unit )))
+    
+    if [ "$diff_w" -le 30 ] && [ "$diff_right" -le 30 ]; then
+      x=$x_left
+    else
+      x=$x_right
+    fi
     y=$(( USABLE_Y ))
-    apply_geometry $x $y $w $h
+    apply_geometry $x $y $unit $h
     ;;
   "center-third")
     w=$(( (dw - GAP * 4) / 3 ))
     h=$(( USABLE_H - GAP ))
     x=$(( dx + GAP * 2 + w ))
-    y=$(( USABLE_Y ))
-    apply_geometry $x $y $w $h
-    ;;
-  "last-third")
-    w=$(( (dw - GAP * 4) / 3 ))
-    h=$(( USABLE_H - GAP ))
-    x=$(( dx + GAP * 3 + w * 2 ))
     y=$(( USABLE_Y ))
     apply_geometry $x $y $w $h
     ;;

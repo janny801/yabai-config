@@ -1,11 +1,19 @@
 #!/usr/bin/env sh
 # Place window into floating fraction/slot
-# Usage: window-place.sh <left-half|right-half|top-half|bottom-half|first-third|center-third|last-third|first-two-thirds|center|maximize-height>
+# Usage: window-place.sh <left-half|right-half|top-half|bottom-half|first-third|center-third|last-third|first-two-thirds|last-two-thirds|center|maximize|maximize-height>
 
 ACTION="$1"
 
-# Ensure window is floating
-yabai -m window --grid 1:1:0:0:1:1 2>/dev/null
+# Query current window frame BEFORE changing anything
+win=$(yabai -m query --windows --window)
+is_floating=$(echo "$win" | jq '.["is-floating"]')
+cur_x=$(echo "$win" | jq '.frame.x | floor')
+cur_w=$(echo "$win" | jq '.frame.w | floor')
+
+# Ensure window is floating without moving it
+if [ "$is_floating" = "false" ]; then
+  yabai -m window --toggle float 2>/dev/null
+fi
 
 d=$(yabai -m query --displays --display | jq '.frame')
 dx=$(echo "$d" | jq '.x | floor')
@@ -18,6 +26,15 @@ TOP_OFFSET=36
 GAP=10
 USABLE_H=$((dh - TOP_OFFSET - GAP))
 USABLE_Y=$((dy + TOP_OFFSET))
+
+abs() {
+  v=$1
+  if [ "$v" -lt 0 ]; then
+    echo $(( -v ))
+  else
+    echo "$v"
+  fi
+}
 
 case "$ACTION" in
   "left-half")
@@ -82,12 +99,17 @@ case "$ACTION" in
     h=$(( USABLE_H - GAP ))
     x_left=$(( dx + GAP ))
     x_right=$(( dx + GAP * 2 + unit ))
-    cur_x=$(yabai -m query --windows --window | jq '.frame.x | floor')
-    # If already at left two-thirds (within 15px), cycle to right two-thirds; otherwise go left
-    diff=$(( cur_x - x_left ))
-    if [ "${diff#-}" -le 15 ]; then
+    
+    # Check if currently near left two-thirds or right two-thirds
+    diff_left=$(abs $(( cur_x - x_left )))
+    diff_right=$(abs $(( cur_x - x_right )))
+    diff_w=$(abs $(( cur_w - w )))
+    
+    if [ "$diff_w" -le 30 ] && [ "$diff_left" -le 30 ]; then
+      # Currently left 2/3 -> cycle to right 2/3
       x=$x_right
     else
+      # Otherwise go to left 2/3
       x=$x_left
     fi
     y=$(( USABLE_Y ))
@@ -112,16 +134,15 @@ case "$ACTION" in
     yabai -m window --move abs:$x:$y
     ;;
   "center")
-    w=$(yabai -m query --windows --window | jq '.frame.w | floor')
-    h=$(yabai -m query --windows --window | jq '.frame.h | floor')
+    w=$(echo "$win" | jq '.frame.w | floor')
+    h=$(echo "$win" | jq '.frame.h | floor')
     x=$(( dx + (dw - w) / 2 ))
     y=$(( USABLE_Y + (USABLE_H - h) / 2 ))
     yabai -m window --move abs:$x:$y
     ;;
   "maximize-height")
-    w=$(yabai -m query --windows --window | jq '.frame.w | floor')
+    w=$(echo "$win" | jq '.frame.w | floor')
     h=$(( USABLE_H - GAP ))
-    cur_x=$(yabai -m query --windows --window | jq '.frame.x | floor')
     yabai -m window --resize abs:$w:$h
     yabai -m window --move abs:$cur_x:$USABLE_Y
     ;;

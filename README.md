@@ -2,6 +2,10 @@
 
 Custom **[yabai](https://github.com/koekeishiya/yabai)** and **[skhd](https://github.com/koekeishiya/skhd)** macOS window management configuration with hybrid tiling/floating support, interactive visual window switcher overlay, quadrant cycling, and Rectangle-style snap bindings.
 
+<p align="center">
+  <img src="assets/preview.jpg" alt="yabai-config preview" width="100%" />
+</p>
+
 ---
 
 ## ✨ Features

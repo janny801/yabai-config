@@ -212,7 +212,11 @@ class OverlayManager {
         activeWindows = fetchWindows()
         let currentSpaceType = fetchSpaceType()
 
-        // 1. Create dimming overlay for each screen
+        guard let primaryScreen = NSScreen.screens.first else { return }
+        let primaryHeight = primaryScreen.frame.height
+
+        // 1. Create dimming overlay for each screen with cutout for focused window
+        let focusedWindow = activeWindows.first(where: { $0.hasFocus == true })
         for screen in NSScreen.screens {
             let dimWin = NSWindow(
                 contentRect: screen.frame,
@@ -221,16 +225,67 @@ class OverlayManager {
                 defer: false
             )
             dimWin.isOpaque = false
-            dimWin.backgroundColor = NSColor.black.withAlphaComponent(0.40)
+            dimWin.backgroundColor = .clear
             dimWin.level = NSWindow.Level(rawValue: Int(CGWindowLevelForKey(.overlayWindow)))
             dimWin.ignoresMouseEvents = true
+
+            // Cut out focused window so it stays full light
+            var cutoutInScreenCoords: NSRect? = nil
+            if let fw = focusedWindow {
+                // yabai frame: origin top-left of main display
+                // screen frame: origin bottom-left of respective display
+                let winX = fw.frame.x
+                let winY = primaryHeight - (fw.frame.y + fw.frame.h)
+                let winRectGlobal = NSRect(x: winX, y: winY, width: fw.frame.w, height: fw.frame.h)
+                if screen.frame.intersects(winRectGlobal) {
+                    cutoutInScreenCoords = NSRect(
+                        x: winRectGlobal.origin.x - screen.frame.origin.x,
+                        y: winRectGlobal.origin.y - screen.frame.origin.y,
+                        width: winRectGlobal.size.width,
+                        height: winRectGlobal.size.height
+                    )
+                }
+            }
+
+            let dimView = DimMaskView(frame: NSRect(origin: .zero, size: screen.frame.size), cutoutRect: cutoutInScreenCoords)
+            dimWin.contentView = dimView
             dimWin.orderFrontRegardless()
             darkWindows.append(dimWin)
         }
 
-        // 2. Create key badges on each visible window
-        guard let primaryScreen = NSScreen.screens.first else { return }
-        let primaryHeight = primaryScreen.frame.height
+        // 2. Create glowing outline overlay on focused window
+        if let fw = focusedWindow {
+            let winX = fw.frame.x
+            let winY = primaryHeight - (fw.frame.y + fw.frame.h)
+            let glowPadding: CGFloat = 20.0
+            let glowRect = NSRect(
+                x: winX - glowPadding,
+                y: winY - glowPadding,
+                width: fw.frame.w + (glowPadding * 2),
+                height: fw.frame.h + (glowPadding * 2)
+            )
+
+            let glowWin = NSWindow(
+                contentRect: glowRect,
+                styleMask: [.borderless],
+                backing: .buffered,
+                defer: false
+            )
+            glowWin.isOpaque = false
+            glowWin.backgroundColor = .clear
+            glowWin.level = NSWindow.Level(rawValue: Int(CGWindowLevelForKey(.overlayWindow)) + 1)
+            glowWin.ignoresMouseEvents = true
+
+            let glowView = GlowingOutlineView(
+                frame: NSRect(origin: .zero, size: glowRect.size),
+                innerWindowRect: NSRect(x: glowPadding, y: glowPadding, width: fw.frame.w, height: fw.frame.h)
+            )
+            glowWin.contentView = glowView
+            glowWin.orderFrontRegardless()
+            glowWindows.append(glowWin)
+        }
+
+        // 3. Create key badges on each visible window
 
         for (idx, win) in activeWindows.prefix(9).enumerated() {
             let keyChar = keyLabels[idx]
@@ -297,6 +352,11 @@ class OverlayManager {
             win.orderOut(nil)
         }
         darkWindows.removeAll()
+
+        for win in glowWindows {
+            win.orderOut(nil)
+        }
+        glowWindows.removeAll()
 
         for win in badgeWindows {
             win.orderOut(nil)
@@ -464,6 +524,78 @@ class BadgeView: NSView {
         keyText.draw(in: shadowRect, withAttributes: shadowAttrs)
 
         keyText.draw(in: textRect, withAttributes: keyAttrs)
+    }
+}
+
+class DimMaskView: NSView {
+    let cutoutRect: NSRect?
+
+    init(frame: NSRect, cutoutRect: NSRect?) {
+        self.cutoutRect = cutoutRect
+        super.init(frame: frame)
+    }
+
+    required init?(coder: NSCoder) {
+        fatalError("init(coder:) has not been implemented")
+    }
+
+    override func draw(_ dirtyRect: NSRect) {
+        super.draw(dirtyRect)
+
+        let path = NSBezierPath(rect: bounds)
+        if let cutout = cutoutRect {
+            let cornerRadius: CGFloat = 8.0
+            let cutoutPath = NSBezierPath(roundedRect: cutout, xRadius: cornerRadius, yRadius: cornerRadius)
+            path.append(cutoutPath)
+            path.windingRule = .evenOdd
+        }
+
+        NSColor.black.withAlphaComponent(0.40).setFill()
+        path.fill()
+    }
+}
+
+class GlowingOutlineView: NSView {
+    let innerWindowRect: NSRect
+
+    init(frame: NSRect, innerWindowRect: NSRect) {
+        self.innerWindowRect = innerWindowRect
+        super.init(frame: frame)
+    }
+
+    required init?(coder: NSCoder) {
+        fatalError("init(coder:) has not been implemented")
+    }
+
+    override func draw(_ dirtyRect: NSRect) {
+        super.draw(dirtyRect)
+
+        let cornerRadius: CGFloat = 8.0
+        let accentCyan = NSColor(red: 0.40, green: 0.85, blue: 1.0, alpha: 1.0)
+
+        // Multiple concentric strokes for neon glow effect
+        let glowLevels: [(inset: CGFloat, alpha: CGFloat, width: CGFloat)] = [
+            (-6.0, 0.08, 6.0),
+            (-4.0, 0.15, 4.0),
+            (-2.0, 0.35, 3.0),
+            (-0.5, 0.65, 2.0),
+            ( 0.0, 0.95, 2.0)
+        ]
+
+        for level in glowLevels {
+            let rect = innerWindowRect.insetBy(dx: level.inset, dy: level.inset)
+            let path = NSBezierPath(roundedRect: rect, xRadius: cornerRadius - level.inset / 2.0, yRadius: cornerRadius - level.inset / 2.0)
+            accentCyan.withAlphaComponent(level.alpha).setStroke()
+            path.lineWidth = level.width
+            path.stroke()
+        }
+
+        // Inner bright white highlight rim
+        let innerHighlightRect = innerWindowRect.insetBy(dx: 1.0, dy: 1.0)
+        let innerHighlightPath = NSBezierPath(roundedRect: innerHighlightRect, xRadius: cornerRadius - 1.0, yRadius: cornerRadius - 1.0)
+        NSColor.white.withAlphaComponent(0.80).setStroke()
+        innerHighlightPath.lineWidth = 1.0
+        innerHighlightPath.stroke()
     }
 }
 

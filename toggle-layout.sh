@@ -57,10 +57,11 @@ PYEOF
     # Switch layout to BSP
     yabai -m space --layout bsp
 
-    # Unfloat windows
-    yabai -m query --windows --space | jq -r '.[] | select(.["is-visible"] == true and .["is-minimized"] == false and .["is-floating"] == true and .role == "AXWindow" and .subrole == "AXStandardWindow") | .id' | while read -r wid; do
+    # Unfloat all standard windows and balance space
+    yabai -m query --windows --space | jq -r '.[] | select(.["is-minimized"] == false and .["is-floating"] == true and .role == "AXWindow" and .subrole == "AXStandardWindow") | .id' | while read -r wid; do
         [ -n "$wid" ] && yabai -m window "$wid" --toggle float 2>/dev/null
     done
+    yabai -m space --balance 2>/dev/null
 
     # Re-order/swap BSP slots so each window stays in the slot closest to its original position
     python3 - << 'PYEOF'

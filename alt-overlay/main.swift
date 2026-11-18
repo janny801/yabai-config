@@ -46,6 +46,7 @@ class OverlayManager {
     
     private var darkWindows: [NSWindow] = []
     private var badgeWindows: [NSWindow] = []
+    private var bottomHudWindow: NSWindow?
     private var activeWindows: [YabaiWindow] = []
     private var isOverlayActive = false
     private var eventTap: CFMachPort?
@@ -112,9 +113,50 @@ class OverlayManager {
                 // Suppress key press so it doesn't type into the active window
                 return nil
             }
+            // Spacebar keycode is 49: trigger toggle-layout.sh and refresh overlay
+            if keyCode == 49 {
+                DispatchQueue.main.async { [weak self] in
+                    guard let self = self else { return }
+                    self.toggleLayout()
+                }
+                return nil
+            }
         }
 
         return Unmanaged.passRetained(event)
+    }
+
+    private func fetchSpaceType() -> String {
+        let task = Process()
+        task.launchPath = "/opt/homebrew/bin/yabai"
+        task.arguments = ["-m", "query", "--spaces", "--space"]
+        let pipe = Pipe()
+        task.standardOutput = pipe
+        do {
+            try task.run()
+            task.waitUntilExit()
+            let data = pipe.fileHandleForReading.readDataToEndOfFile()
+            if let json = try JSONSerialization.jsonObject(with: data) as? [String: Any],
+               let type = json["type"] as? String {
+                return type
+            }
+        } catch {}
+        return "float"
+    }
+
+    private func toggleLayout() {
+        let toggleScript = "\(NSHomeDirectory())/.config/yabai/toggle-layout.sh"
+        let task = Process()
+        task.launchPath = "/bin/bash"
+        task.arguments = [toggleScript]
+        do {
+            try task.run()
+            task.waitUntilExit()
+        } catch {}
+        
+        // Refresh overlays with new window positions and updated bottom HUD mode
+        hideOverlay()
+        showOverlay()
     }
 
     private func fetchWindows() -> [YabaiWindow] {
@@ -150,14 +192,13 @@ class OverlayManager {
             try task.run()
             task.waitUntilExit()
             if task.terminationStatus != 0 {
-                // Fallback to activating application by PID via NSWorkspace
                 if let app = NSRunningApplication(processIdentifier: pid_t(win.pid)) {
-                    app.activate(options: [.activateIgnoringOtherApps])
+                    app.activate()
                 }
             }
         } catch {
             if let app = NSRunningApplication(processIdentifier: pid_t(win.pid)) {
-                app.activate(options: [.activateIgnoringOtherApps])
+                app.activate()
             }
         }
     }
@@ -166,6 +207,7 @@ class OverlayManager {
         guard !isOverlayActive else { return }
         isOverlayActive = true
         activeWindows = fetchWindows()
+        let currentSpaceType = fetchSpaceType()
 
         // 1. Create dimming overlay for each screen
         for screen in NSScreen.screens {
@@ -218,6 +260,30 @@ class OverlayManager {
             badgeWin.orderFrontRegardless()
             badgeWindows.append(badgeWin)
         }
+
+        // 3. Bottom HUD indicator: Spacebar icon + "switch to bsp" / "switch to float"
+        let targetMode = (currentSpaceType == "bsp") ? "float" : "bsp"
+        let hudWidth: CGFloat = 220
+        let hudHeight: CGFloat = 40
+        let hudX = (primaryScreen.frame.width - hudWidth) / 2.0
+        let hudY: CGFloat = 28 // 28px from bottom of screen
+
+        let hudRect = NSRect(x: hudX, y: hudY, width: hudWidth, height: hudHeight)
+        let hudWin = NSWindow(
+            contentRect: hudRect,
+            styleMask: [.borderless],
+            backing: .buffered,
+            defer: false
+        )
+        hudWin.isOpaque = false
+        hudWin.backgroundColor = .clear
+        hudWin.level = NSWindow.Level(rawValue: Int(CGWindowLevelForKey(.overlayWindow)) + 1)
+        hudWin.ignoresMouseEvents = true
+
+        let hudView = BottomHudView(frame: NSRect(x: 0, y: 0, width: hudWidth, height: hudHeight), targetMode: targetMode)
+        hudWin.contentView = hudView
+        hudWin.orderFrontRegardless()
+        bottomHudWindow = hudWin
     }
 
     private func hideOverlay() {
@@ -233,7 +299,79 @@ class OverlayManager {
             win.orderOut(nil)
         }
         badgeWindows.removeAll()
+
+        bottomHudWindow?.orderOut(nil)
+        bottomHudWindow = nil
+
         activeWindows.removeAll()
+    }
+}
+
+class BottomHudView: NSView {
+    let targetMode: String
+
+    init(frame: NSRect, targetMode: String) {
+        self.targetMode = targetMode
+        super.init(frame: frame)
+    }
+
+    required init?(coder: NSCoder) {
+        fatalError("init(coder:) has not been implemented")
+    }
+
+    override func draw(_ dirtyRect: NSRect) {
+        super.draw(dirtyRect)
+
+        // Rounded HUD pill
+        let bgPath = NSBezierPath(roundedRect: bounds.insetBy(dx: 1, dy: 1), xRadius: 8, yRadius: 8)
+        NSColor(calibratedRed: 0.08, green: 0.08, blue: 0.12, alpha: 0.88).setFill()
+        bgPath.fill()
+
+        NSColor(white: 0.28, alpha: 0.8).setStroke()
+        bgPath.lineWidth = 1.0
+        bgPath.stroke()
+
+        // Spacebar keycap
+        let keyRect = NSRect(x: 12, y: 7, width: 44, height: 26)
+        let keyPath = NSBezierPath(roundedRect: keyRect, xRadius: 5, yRadius: 5)
+
+        // Bottom 3D shadow
+        let shadowRect = NSRect(x: 12, y: 5, width: 44, height: 26)
+        let shadowPath = NSBezierPath(roundedRect: shadowRect, xRadius: 5, yRadius: 5)
+        NSColor(white: 0.06, alpha: 0.95).setFill()
+        shadowPath.fill()
+
+        let gradient = NSGradient(
+            starting: NSColor(white: 0.25, alpha: 0.98),
+            ending: NSColor(white: 0.15, alpha: 0.98)
+        )
+        gradient?.draw(in: keyPath, angle: -90)
+
+        NSColor(white: 0.45, alpha: 0.85).setStroke()
+        keyPath.lineWidth = 1.0
+        keyPath.stroke()
+
+        // Spacebar icon: wide horizontal bracket [________]
+        let iconPath = NSBezierPath()
+        iconPath.move(to: NSPoint(x: keyRect.midX - 12, y: keyRect.midY + 2))
+        iconPath.line(to: NSPoint(x: keyRect.midX - 12, y: keyRect.midY - 2))
+        iconPath.line(to: NSPoint(x: keyRect.midX + 12, y: keyRect.midY - 2))
+        iconPath.line(to: NSPoint(x: keyRect.midX + 12, y: keyRect.midY + 2))
+        iconPath.lineWidth = 1.8
+        iconPath.lineCapStyle = .round
+        NSColor(white: 0.95, alpha: 1.0).setStroke()
+        iconPath.stroke()
+
+        // Action label text: "switch to bsp" or "switch to float"
+        let font = NSFont(name: "Press Start 2P", size: 9) ?? NSFont.monospacedSystemFont(ofSize: 11, weight: .bold)
+        let labelText = "switch to \(targetMode)"
+        let attrs: [NSAttributedString.Key: Any] = [
+            .font: font,
+            .foregroundColor: NSColor(white: 0.90, alpha: 1.0)
+        ]
+        let textSize = labelText.size(withAttributes: attrs)
+        let textPoint = NSPoint(x: 66, y: (bounds.height - textSize.height) / 2.0)
+        labelText.draw(at: textPoint, withAttributes: attrs)
     }
 }
 

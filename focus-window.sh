@@ -19,9 +19,9 @@ if [ -z "$target_index" ]; then
     exit 1
 fi
 
-read -r window_id pid < <(yabai -m query --windows --space | jq -r --argjson idx "$target_index" '
+read -r window_id pid < <(yabai -m query --windows | jq -r --argjson idx "$target_index" '
   [ .[] | select(."is-visible" == true and ."is-minimized" == false and ."is-hidden" == false and ."role" == "AXWindow") ]
-  | sort_by( ((.frame.y / 60) | floor), .frame.x, .id )
+  | sort_by( .frame.x, ((.frame.y / 60) | floor), .id )
   | if .[$idx] then "\([$idx].id) \([$idx].pid)" else empty end
 ')
 

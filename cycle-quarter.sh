@@ -1,4 +1,13 @@
-#!/usr/bin/env sh
+#!/usr/bin/env bash
+
+# In BSP mode: cycle window order through BSP tree slots
+cur_space_type=$(yabai -m query --spaces --space | jq -r '.type // "float"')
+
+if [ "$cur_space_type" = "bsp" ]; then
+  # Swap with next window in tree; if at end, swap with first
+  yabai -m window --swap next 2>/dev/null || yabai -m window --swap first 2>/dev/null
+  exit 0
+fi
 
 STATE_FILE="/tmp/yabai-quarter-state"
 TOP_ADJUST=30       # reduces height of top windows

@@ -175,7 +175,7 @@ class OverlayManager {
     private func fetchWindows() -> [YabaiWindow] {
         let task = Process()
         task.launchPath = "/opt/homebrew/bin/yabai"
-        task.arguments = ["-m", "query", "--windows", "--space"]
+        task.arguments = ["-m", "query", "--windows"]
         let pipe = Pipe()
         task.standardOutput = pipe
         do {
@@ -186,10 +186,10 @@ class OverlayManager {
             return windows
                 .filter { $0.isVisible && !$0.isMinimized && !$0.isHidden && $0.role == "AXWindow" }
                 .sorted {
+                    if $0.frame.x != $1.frame.x { return $0.frame.x < $1.frame.x }
                     let row1 = floor($0.frame.y / 60)
                     let row2 = floor($1.frame.y / 60)
                     if row1 != row2 { return row1 < row2 }
-                    if $0.frame.x != $1.frame.x { return $0.frame.x < $1.frame.x }
                     return $0.id < $1.id
                 }
         } catch {

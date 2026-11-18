@@ -1,0 +1,47 @@
+# ==============================================================================
+# SKHD CONFIGURATION
+# ==============================================================================
+
+# Custom quarter rotation (preserved)
+ctrl - i : ~/.config/yabai/cycle-quarter.sh
+
+# Toggle Layout: BSP (automatic tiling) <-> Float (manual/rectangle mode)
+# 'alt' is the Option (⌥) key
+alt - space : yabai -m space --layout $(yabai -m query --spaces --space | jq -r 'if .type == "bsp" then "float" else "bsp" end')
+
+# Balance all windows in BSP space
+alt - b : yabai -m space --balance
+
+# ------------------------------------------------------------------------------
+# Rectangle Replacement Bindings (works in both float and bsp)
+# ------------------------------------------------------------------------------
+
+# Left Half / Right Half
+shift + cmd - j : ~/.config/yabai/window-place.sh left-half
+shift + cmd - k : ~/.config/yabai/window-place.sh right-half
+
+# Top Half / Bottom Half (0x27 is ', 0x2F is /)
+shift + cmd - 0x27 : ~/.config/yabai/window-place.sh top-half
+shift + cmd - 0x2F : ~/.config/yabai/window-place.sh bottom-half
+
+# Maximize / Zoom Fullscreen
+shift + cmd - up : yabai -m window --toggle zoom-fullscreen
+
+# Maximize Height
+ctrl + alt + shift - up : ~/.config/yabai/window-place.sh maximize-height
+
+# Center
+ctrl + alt - c : ~/.config/yabai/window-place.sh center
+
+# Restore (toggle zoom or balance)
+ctrl + alt - backspace : yabai -m window --toggle zoom-fullscreen 2>/dev/null || yabai -m space --balance
+
+# Make Smaller / Make Larger
+shift + cmd - down : yabai -m window --resize bottom:0:-40 2>/dev/null || yabai -m window --resize top:0:40 2>/dev/null || yabai -m window --resize right:-40:0
+ctrl + alt - 0x18  : yabai -m window --resize bottom:0:40 2>/dev/null || yabai -m window --resize top:0:-40 2>/dev/null || yabai -m window --resize right:40:0 # 0x18 is =
+
+# First Third / Center Third / Last Third / First Two Thirds
+ctrl + alt - d  : ~/.config/yabai/window-place.sh first-third
+ctrl + alt - f  : ~/.config/yabai/window-place.sh center-third
+shift + cmd - l : ~/.config/yabai/window-place.sh last-third
+shift + cmd - u : ~/.config/yabai/window-place.sh first-two-thirds

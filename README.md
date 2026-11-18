@@ -11,6 +11,10 @@ Custom **[yabai](https://github.com/koekeishiya/yabai)** and **[skhd](https://gi
 ## ✨ Features
 
 ### 1. Interactive Visual Window Switcher (`Alt` / `Option` Overlay)
+<p align="center">
+  <img src="assets/alt-overlay-preview.jpg" alt="Alt Overlay Window Switcher and Active Window Highlight" width="100%" />
+</p>
+
 - **Hold `Alt` / `Option`**:
   - Dims the screen (40% transparent backdrop).
   - Highlights currently focused window with a **Nord/Hyprland-inspired soft ice-blue ambient glow** (`#94B3DC`).

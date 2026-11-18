@@ -38,8 +38,9 @@ yabai -m rule --add app="^Calculator$" manage=off
 yabai -m rule --add app="^Activity Monitor$" manage=off
 yabai -m rule --add app="^Rectangle$" manage=off
 
-# Explicitly tile apps that macOS marks as AXDialog (like Messages)
+# Explicitly tile apps that macOS marks as AXDialog or custom Electron frames
 yabai -m rule --add app="^Messages$" subrole="^AXDialog$" manage=on
+yabai -m rule --add app="^Spotify$" manage=on
 
 # Alt Overlay Helper (darkens screen and shows numbers/keys when alt held)
 OVERLAY_BIN="$HOME/.config/yabai/alt-overlay/alt-overlay"

@@ -574,29 +574,29 @@ class GlowingOutlineView: NSView {
         super.draw(dirtyRect)
 
         let cornerRadius: CGFloat = 8.0
-        let accentCyan = NSColor(red: 0.40, green: 0.85, blue: 1.0, alpha: 1.0)
+        let pureWhite = NSColor.white
 
-        // Multiple concentric strokes for neon glow effect
+        // Multiple concentric strokes for clean white halo glow effect
         let glowLevels: [(inset: CGFloat, alpha: CGFloat, width: CGFloat)] = [
-            (-6.0, 0.08, 6.0),
-            (-4.0, 0.15, 4.0),
-            (-2.0, 0.35, 3.0),
-            (-0.5, 0.65, 2.0),
+            (-8.0, 0.05, 8.0),
+            (-5.0, 0.12, 6.0),
+            (-3.0, 0.25, 4.0),
+            (-1.0, 0.50, 3.0),
             ( 0.0, 0.95, 2.0)
         ]
 
         for level in glowLevels {
             let rect = innerWindowRect.insetBy(dx: level.inset, dy: level.inset)
             let path = NSBezierPath(roundedRect: rect, xRadius: cornerRadius - level.inset / 2.0, yRadius: cornerRadius - level.inset / 2.0)
-            accentCyan.withAlphaComponent(level.alpha).setStroke()
+            pureWhite.withAlphaComponent(level.alpha).setStroke()
             path.lineWidth = level.width
             path.stroke()
         }
 
-        // Inner bright white highlight rim
+        // Inner crisp white highlight rim
         let innerHighlightRect = innerWindowRect.insetBy(dx: 1.0, dy: 1.0)
         let innerHighlightPath = NSBezierPath(roundedRect: innerHighlightRect, xRadius: cornerRadius - 1.0, yRadius: cornerRadius - 1.0)
-        NSColor.white.withAlphaComponent(0.80).setStroke()
+        NSColor.white.withAlphaComponent(0.90).setStroke()
         innerHighlightPath.lineWidth = 1.0
         innerHighlightPath.stroke()
     }

@@ -17,7 +17,8 @@ action = sys.argv[1] if len(sys.argv) > 1 else ""
 try:
     cur_win = json.loads(subprocess.check_output(["yabai", "-m", "query", "--windows", "--window"]))
     space_wins = json.loads(subprocess.check_output(["yabai", "-m", "query", "--windows", "--space"]))
-    disp_frame = json.loads(subprocess.check_output(["yabai", "-m", "query", "--displays", "--display"]))["frame"]
+    disp = json.loads(subprocess.check_output(["yabai", "-m", "query", "--displays", "--display"]))
+    disp_frame = disp["frame"]
     all_displays = json.loads(subprocess.check_output(["yabai", "-m", "query", "--displays"]))
 except Exception:
     sys.exit(0)
@@ -31,6 +32,22 @@ if not managed or cur_id not in [w["id"] for w in managed]:
 if action == "maximize":
     subprocess.run(["yabai", "-m", "window", "--toggle", "zoom-fullscreen"], capture_output=True)
     sys.exit(0)
+
+def move_window_to_next_display():
+    if len(all_displays) <= 1:
+        return
+    all_disps = sorted(all_displays, key=lambda d: d["index"])
+    cur_pos = [i for i, d in enumerate(all_disps) if d["index"] == disp["index"]][0]
+    next_disp = all_disps[(cur_pos + 1) % len(all_disps)]
+    target_x = int(next_disp["frame"]["x"] + next_disp["frame"]["w"] / 2)
+    target_y = int(next_disp["frame"]["y"] + next_disp["frame"]["h"] / 2)
+    
+    # Toggle float -> coordinate move to target display -> re-tile (toggle float)
+    subprocess.run(["yabai", "-m", "window", str(cur_id), "--toggle", "float"], capture_output=True)
+    subprocess.run(["yabai", "-m", "window", str(cur_id), "--move", f"abs:{target_x}:{target_y}"], capture_output=True)
+    subprocess.run(["yabai", "-m", "window", str(cur_id), "--toggle", "float"], capture_output=True)
+    subprocess.run(["yabai", "-m", "window", "--focus", str(cur_id)], capture_output=True)
+    subprocess.run(["yabai", "-m", "space", "--balance"], capture_output=True)
 
 def cycle_display_if_needed(target_state_name):
     if len(all_displays) <= 1:
@@ -46,10 +63,7 @@ def cycle_display_if_needed(target_state_name):
         f.write(target_state_name)
 
     if last_action == target_state_name:
-        # Move to next display
-        subprocess.run(["yabai", "-m", "window", str(cur_id), "--display", "next"], capture_output=True)
-        subprocess.run(["yabai", "-m", "window", "--focus", str(cur_id)], capture_output=True)
-        subprocess.run(["yabai", "-m", "space", "--balance"], capture_output=True)
+        move_window_to_next_display()
         return True
     return False
 
@@ -91,9 +105,7 @@ elif action in ["first-third", "last-third", "cycle-third"]:
         target_dir = "right"
     elif is_third and rel_x > 0.50 and len(all_displays) > 1:
         # At right 1/3, trigger cycle to next display
-        subprocess.run(["yabai", "-m", "window", str(cur_id), "--display", "next"], capture_output=True)
-        subprocess.run(["yabai", "-m", "window", "--focus", str(cur_id)], capture_output=True)
-        subprocess.run(["yabai", "-m", "space", "--balance"], capture_output=True)
+        move_window_to_next_display()
         sys.exit(0)
     else:
         target_dir = "left"
@@ -108,9 +120,7 @@ elif action in ["first-two-thirds", "two-thirds", "cycle-two-thirds"]:
         target_dir = "right"
     elif is_wide and not is_left and len(all_displays) > 1:
         # At right 2/3, cycle to next display
-        subprocess.run(["yabai", "-m", "window", str(cur_id), "--display", "next"], capture_output=True)
-        subprocess.run(["yabai", "-m", "window", "--focus", str(cur_id)], capture_output=True)
-        subprocess.run(["yabai", "-m", "space", "--balance"], capture_output=True)
+        move_window_to_next_display()
         sys.exit(0)
     else:
         target_dir = "left"
@@ -272,14 +282,17 @@ num_displays=$(yabai -m query --displays | jq 'length')
 
 cycle_to_next_display() {
   if [ "$num_displays" -gt 1 ]; then
-    yabai -m window "$cur_win_id" --display next
-    yabai -m window --focus "$cur_win_id"
-    # Re-query display dimensions on new screen
-    d=$(yabai -m query --displays --display | jq '.frame')
-    dx=$(echo "$d" | jq '.x | floor')
-    dy=$(echo "$d" | jq '.y | floor')
-    dw=$(echo "$d" | jq '.w | floor')
-    dh=$(echo "$d" | jq '.h | floor')
+    # Calculate next display coordinates reliably
+    eval $(python3 -c "
+import json, subprocess
+cur_disp = json.loads(subprocess.check_output(['yabai', '-m', 'query', '--displays', '--display']))
+all_disps = json.loads(subprocess.check_output(['yabai', '-m', 'query', '--displays']))
+all_disps.sort(key=lambda d: d['index'])
+cur_pos = [i for i, d in enumerate(all_disps) if d['index'] == cur_disp['index']][0]
+next_disp = all_disps[(cur_pos + 1) % len(all_disps)]
+frame = next_disp['frame']
+print(f'dx={int(frame[\"x\"])} dy={int(frame[\"y\"])} dw={int(frame[\"w\"])} dh={int(frame[\"h\"])}')
+")
     USABLE_H=$((dh - TOP_OFFSET - GAP))
     USABLE_Y=$((dy + TOP_OFFSET))
   fi

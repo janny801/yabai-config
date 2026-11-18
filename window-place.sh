@@ -51,15 +51,19 @@ elif action == "bottom-half":
     target_dir = "bottom"
     fraction = 0.5
 elif action in ["first-third", "last-third", "cycle-third"]:
-    # Cycle between left third and right third (similar to first-two-thirds cycling)
+    # 3-way cycle: left (1st) -> center (2nd) -> right (3rd) -> left...
     cur_w = cur_win["frame"]["w"]
     cur_x = cur_win["frame"]["x"]
     is_third = cur_w < disp_frame["w"] * 0.45
-    is_right = cur_x > disp_frame["w"] * 0.45
-    if is_third and is_right:
-        target_dir = "left"
-    else:
+    # Relative x position across display
+    rel_x = (cur_x - disp_frame["x"]) / max(disp_frame["w"], 1.0)
+    
+    if is_third and rel_x < 0.25:
+        target_dir = "center"
+    elif is_third and 0.25 <= rel_x <= 0.50:
         target_dir = "right"
+    else:
+        target_dir = "left"
     fraction = 1.0 / 3.0
 elif action in ["first-two-thirds", "two-thirds", "cycle-two-thirds"]:
     # Check if currently left two-thirds -> cycle to right two-thirds
@@ -80,6 +84,30 @@ elif action == "center":
     sys.exit(0)
 
 if not target_dir:
+    sys.exit(0)
+
+if target_dir == "center":
+    # 3-column BSP placement: other windows split to left and right, cur_id in center
+    mid = len(other_ids) // 2
+    left_group = other_ids[:mid] if mid > 0 else [other_ids[0]]
+    right_group = other_ids[mid:] if mid > 0 else []
+
+    lead_left = left_group[0]
+    for oid in left_group[1:]:
+        subprocess.run(["yabai", "-m", "window", str(oid), "--warp", str(lead_left)], capture_output=True)
+
+    subprocess.run(["yabai", "-m", "window", str(lead_left), "--insert", "east"], capture_output=True)
+    subprocess.run(["yabai", "-m", "window", str(cur_id), "--warp", str(lead_left)], capture_output=True)
+
+    if right_group:
+        lead_right = right_group[0]
+        for oid in right_group[1:]:
+            subprocess.run(["yabai", "-m", "window", str(oid), "--warp", str(lead_right)], capture_output=True)
+        subprocess.run(["yabai", "-m", "window", str(cur_id), "--insert", "east"], capture_output=True)
+        subprocess.run(["yabai", "-m", "window", str(lead_right), "--warp", str(cur_id)], capture_output=True)
+
+    subprocess.run(["yabai", "-m", "space", "--balance"], capture_output=True)
+    subprocess.run(["yabai", "-m", "window", "--focus", str(cur_id)], capture_output=True)
     sys.exit(0)
 
 # 1. Cluster all other windows together into other_ids[0]
@@ -242,15 +270,21 @@ case "$ACTION" in
     unit=$(( (dw - GAP * 4) / 3 ))
     h=$(( USABLE_H - GAP ))
     x_left=$(( dx + GAP ))
+    x_center=$(( dx + GAP * 2 + unit ))
     x_right=$(( dx + GAP * 3 + unit * 2 ))
     
+    diff_left=$(abs $(( cur_x - x_left )))
+    diff_center=$(abs $(( cur_x - x_center )))
     diff_right=$(abs $(( cur_x - x_right )))
     diff_w=$(abs $(( cur_w - unit )))
     
-    if [ "$diff_w" -le 30 ] && [ "$diff_right" -le 30 ]; then
-      x=$x_left
-    else
+    # 3-way cycle: left -> center -> right -> left...
+    if [ "$diff_w" -le 35 ] && [ "$diff_left" -le 35 ]; then
+      x=$x_center
+    elif [ "$diff_w" -le 35 ] && [ "$diff_center" -le 35 ]; then
       x=$x_right
+    else
+      x=$x_left
     fi
     y=$(( USABLE_Y ))
     apply_geometry $x $y $unit $h

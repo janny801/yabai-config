@@ -111,6 +111,9 @@ class OverlayManager {
                     if targetIdx < self.activeWindows.count {
                         let win = self.activeWindows[targetIdx]
                         self.focusWindow(win: win)
+                        // Refresh overlay immediately so glow and cutouts update to newly focused window
+                        self.hideOverlay()
+                        self.showOverlay()
                     }
                 }
                 // Suppress key press so it doesn't type into the active window

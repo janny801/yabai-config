@@ -7,7 +7,7 @@ ctrl - i : ~/.config/yabai/cycle-quarter.sh
 
 # Toggle Layout: BSP (automatic tiling) <-> Float (manual/rectangle mode)
 # 'alt' is the Option (⌥) key
-alt - space : yabai -m space --layout $(yabai -m query --spaces --space | jq -r 'if .type == "bsp" then "float" else "bsp" end') && sketchybar --trigger yabai_mode_update
+alt - space : ~/.config/yabai/toggle-layout.sh
 
 # Balance all windows in BSP space
 alt - b : yabai -m space --balance

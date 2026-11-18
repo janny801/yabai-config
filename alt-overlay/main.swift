@@ -11,6 +11,7 @@ struct YabaiFrame: Decodable {
 
 struct YabaiWindow: Decodable {
     let id: Int
+    let pid: Int
     let app: String
     let title: String
     let role: String?
@@ -20,7 +21,7 @@ struct YabaiWindow: Decodable {
     let isHidden: Bool
 
     enum CodingKeys: String, CodingKey {
-        case id, app, title, role, frame
+        case id, pid, app, title, role, frame
         case isVisible = "is-visible"
         case isMinimized = "is-minimized"
         case isHidden = "is-hidden"
@@ -101,7 +102,7 @@ class OverlayManager {
                     guard let self = self else { return }
                     if targetIdx < self.activeWindows.count {
                         let win = self.activeWindows[targetIdx]
-                        self.focusWindow(id: win.id)
+                        self.focusWindow(win: win)
                     }
                     self.hideOverlay()
                 }
@@ -138,11 +139,24 @@ class OverlayManager {
         }
     }
 
-    private func focusWindow(id: Int) {
+    private func focusWindow(win: YabaiWindow) {
         let task = Process()
         task.launchPath = "/opt/homebrew/bin/yabai"
-        task.arguments = ["-m", "window", "--focus", "\(id)"]
-        try? task.run()
+        task.arguments = ["-m", "window", "--focus", "\(win.id)"]
+        do {
+            try task.run()
+            task.waitUntilExit()
+            if task.terminationStatus != 0 {
+                // Fallback to activating application by PID via NSWorkspace
+                if let app = NSRunningApplication(processIdentifier: pid_t(win.pid)) {
+                    app.activate(options: [.activateIgnoringOtherApps])
+                }
+            }
+        } catch {
+            if let app = NSRunningApplication(processIdentifier: pid_t(win.pid)) {
+                app.activate(options: [.activateIgnoringOtherApps])
+            }
+        }
     }
 
     private func showOverlay() {

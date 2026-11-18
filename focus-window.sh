@@ -15,12 +15,16 @@ if [ -z "$target_index" ]; then
     exit 1
 fi
 
-window_id=$(yabai -m query --windows --space | jq -r --argjson idx "$target_index" '
+read -r window_id pid < <(yabai -m query --windows --space | jq -r --argjson idx "$target_index" '
   [ .[] | select(."is-visible" == true and ."is-minimized" == false and ."is-hidden" == false and ."role" == "AXWindow") ]
   | sort_by( ((.frame.y / 60) | floor), .frame.x, .id )
-  | .[$idx].id // empty
+  | if .[$idx] then "\([$idx].id) \([$idx].pid)" else empty end
 ')
 
 if [ -n "$window_id" ]; then
-    yabai -m window --focus "$window_id"
+    yabai -m window --focus "$window_id" 2>/dev/null || {
+        if [ -n "$pid" ]; then
+            osascript -e "tell application \"System Events\" to set frontmost of first process whose unix id is $pid to true" 2>/dev/null
+        fi
+    }
 fi

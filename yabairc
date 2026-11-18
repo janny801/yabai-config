@@ -13,8 +13,8 @@ yabai -m config window_shadow                on
 yabai -m config window_opacity               off
 yabai -m config window_opacity_duration      0.0
 
-# Layout & Tiling
-yabai -m config layout                       bsp
+# Layout & Tiling (float mode by default; manual/rectangle placement)
+yabai -m config layout                       float
 yabai -m config auto_balance                 on
 yabai -m config split_ratio                  0.50
 

@@ -186,21 +186,19 @@ class OverlayManager {
 
         for (idx, win) in activeWindows.prefix(5).enumerated() {
             let keyChar = keyLabels[idx]
-            let numStr = "\(idx + 1)"
             
             // Convert yabai coordinate (top-left based) to macOS Cocoa coordinate (bottom-left based)
             let winX = win.frame.x
             let winY = primaryHeight - (win.frame.y + win.frame.h)
-            let winW = win.frame.w
             let winH = win.frame.h
 
-            // Position badge in center of window
-            let badgeW: CGFloat = 140
-            let badgeH: CGFloat = 100
-            let badgeX = winX + (winW - badgeW) / 2
-            let badgeY = winY + (winH - badgeH) / 2
+            // Position small badge in top-left corner of the window with padding
+            let badgeSize: CGFloat = 36
+            let padding: CGFloat = 14
+            let badgeX = winX + padding
+            let badgeY = winY + winH - badgeSize - padding
 
-            let badgeRect = NSRect(x: badgeX, y: badgeY, width: badgeW, height: badgeH)
+            let badgeRect = NSRect(x: badgeX, y: badgeY, width: badgeSize, height: badgeSize)
             let badgeWin = NSWindow(
                 contentRect: badgeRect,
                 styleMask: [.borderless],
@@ -212,7 +210,7 @@ class OverlayManager {
             badgeWin.level = NSWindow.Level(rawValue: Int(CGWindowLevelForKey(.overlayWindow)) + 1)
             badgeWin.ignoresMouseEvents = true
 
-            let badgeView = BadgeView(frame: NSRect(x: 0, y: 0, width: badgeW, height: badgeH), key: keyChar, number: numStr)
+            let badgeView = BadgeView(frame: NSRect(x: 0, y: 0, width: badgeSize, height: badgeSize), key: keyChar)
             badgeWin.contentView = badgeView
             badgeWin.orderFrontRegardless()
             badgeWindows.append(badgeWin)
@@ -238,11 +236,9 @@ class OverlayManager {
 
 class BadgeView: NSView {
     let key: String
-    let number: String
 
-    init(frame: NSRect, key: String, number: String) {
+    init(frame: NSRect, key: String) {
         self.key = key
-        self.number = number
         super.init(frame: frame)
     }
 
@@ -253,40 +249,27 @@ class BadgeView: NSView {
     override func draw(_ dirtyRect: NSRect) {
         super.draw(dirtyRect)
 
-        // Draw rounded pill container
-        let bgPath = NSBezierPath(roundedRect: bounds.insetBy(dx: 4, dy: 4), xRadius: 18, yRadius: 18)
-        NSColor(white: 0.12, alpha: 0.92).setFill()
-        bgPath.fill()
+        // Draw compact circular badge
+        let circlePath = NSBezierPath(ovalIn: bounds.insetBy(dx: 2, dy: 2))
+        NSColor(white: 0.12, alpha: 0.95).setFill()
+        circlePath.fill()
 
         NSColor(calibratedRed: 0.35, green: 0.65, blue: 1.0, alpha: 0.9).setStroke()
-        bgPath.lineWidth = 2.5
-        bgPath.stroke()
+        circlePath.lineWidth = 2.0
+        circlePath.stroke()
 
-        // Key label (e.g. "G", "H", "J")
+        // Single centered letter (G, H, J, K, L)
         let keyText = "\(key)"
         let keyAttrs: [NSAttributedString.Key: Any] = [
-            .font: NSFont.systemFont(ofSize: 42, weight: .heavy),
+            .font: NSFont.systemFont(ofSize: 18, weight: .bold),
             .foregroundColor: NSColor.white
         ]
         let keySize = keyText.size(withAttributes: keyAttrs)
         let keyPoint = NSPoint(
             x: (bounds.width - keySize.width) / 2,
-            y: (bounds.height / 2) - 2
+            y: (bounds.height - keySize.height) / 2 - 1
         )
         keyText.draw(at: keyPoint, withAttributes: keyAttrs)
-
-        // Number subtitle (e.g. "[1]")
-        let subText = "Window \(number)"
-        let subAttrs: [NSAttributedString.Key: Any] = [
-            .font: NSFont.systemFont(ofSize: 13, weight: .bold),
-            .foregroundColor: NSColor(calibratedRed: 0.7, green: 0.85, blue: 1.0, alpha: 0.95)
-        ]
-        let subSize = subText.size(withAttributes: subAttrs)
-        let subPoint = NSPoint(
-            x: (bounds.width - subSize.width) / 2,
-            y: keyPoint.y - subSize.height - 4
-        )
-        subText.draw(at: subPoint, withAttributes: subAttrs)
     }
 }
 

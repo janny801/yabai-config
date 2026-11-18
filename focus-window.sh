@@ -2,11 +2,15 @@
 
 # Focus window by position index on current space (0-based)
 # Windows sorted top-to-bottom, left-to-right:
-# 0 -> g (top-left)
-# 1 -> h
-# 2 -> j
-# 3 -> k
-# 4 -> l
+# 0 -> 1 (top-left)
+# 1 -> 2
+# 2 -> 3
+# 3 -> 4
+# 4 -> 5
+# 5 -> 6
+# 6 -> 7
+# 7 -> 8
+# 8 -> 9
 
 target_index="$1"
 

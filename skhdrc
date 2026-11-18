@@ -13,14 +13,18 @@ alt - space : ~/.config/yabai/toggle-layout.sh
 alt - b : yabai -m space --balance
 
 # ------------------------------------------------------------------------------
-# Direct Window Focus (alt / option + g, h, j, k, l)
-# Windows sorted top-to-bottom, left-to-right (g = top-left window, then h, j, k, l)
+# Direct Window Focus (alt / option + 1 .. 9)
+# Windows sorted top-to-bottom, left-to-right (1 = top-left window, 2, 3...)
 # ------------------------------------------------------------------------------
-alt - g : ~/.config/yabai/focus-window.sh 0
-alt - h : ~/.config/yabai/focus-window.sh 1
-alt - j : ~/.config/yabai/focus-window.sh 2
-alt - k : ~/.config/yabai/focus-window.sh 3
-alt - l : ~/.config/yabai/focus-window.sh 4
+alt - 1 : ~/.config/yabai/focus-window.sh 0
+alt - 2 : ~/.config/yabai/focus-window.sh 1
+alt - 3 : ~/.config/yabai/focus-window.sh 2
+alt - 4 : ~/.config/yabai/focus-window.sh 3
+alt - 5 : ~/.config/yabai/focus-window.sh 4
+alt - 6 : ~/.config/yabai/focus-window.sh 5
+alt - 7 : ~/.config/yabai/focus-window.sh 6
+alt - 8 : ~/.config/yabai/focus-window.sh 7
+alt - 9 : ~/.config/yabai/focus-window.sh 8
 
 # ------------------------------------------------------------------------------
 # Rectangle Replacement Bindings (works in both float and bsp)

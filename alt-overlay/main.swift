@@ -28,13 +28,17 @@ struct YabaiWindow: Decodable {
     }
 }
 
-let keyLabels = ["G", "H", "J", "K", "L"]
+let keyLabels = ["1", "2", "3", "4", "5", "6", "7", "8", "9"]
 let targetKeyCodes: [Int64: Int] = [
-    5: 0,   // 'g'
-    4: 1,   // 'h'
-    38: 2,  // 'j'
-    40: 3,  // 'k'
-    37: 4   // 'l'
+    18: 0,  // '1'
+    19: 1,  // '2'
+    20: 2,  // '3'
+    21: 3,  // '4'
+    23: 4,  // '5'
+    22: 5,  // '6'
+    26: 6,  // '7'
+    28: 7,  // '8'
+    25: 8   // '9'
 ]
 
 class OverlayManager {
@@ -184,7 +188,7 @@ class OverlayManager {
         guard let primaryScreen = NSScreen.screens.first else { return }
         let primaryHeight = primaryScreen.frame.height
 
-        for (idx, win) in activeWindows.prefix(5).enumerated() {
+        for (idx, win) in activeWindows.prefix(9).enumerated() {
             let keyChar = keyLabels[idx]
             
             // Convert yabai coordinate (top-left based) to macOS Cocoa coordinate (bottom-left based)

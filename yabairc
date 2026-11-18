@@ -33,6 +33,7 @@ yabai -m config mouse_drop_action            swap
 
 # Manage all standard windows and dialog windows across all apps by default
 yabai -m rule --add role="^AXWindow$" manage=on
+yabai -m rule --add app="^Messages$" subrole="^AXDialog$" manage=on
 
 # Window Rules (Float dialogs & system utility apps)
 yabai -m rule --add app="^System Settings$" manage=off

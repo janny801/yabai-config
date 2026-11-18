@@ -1,105 +1,119 @@
-# cycle-quarters
+# yabai-config
 
-A lightweight macOS window management script for **[yabai](https://github.com/koekeishiya/yabai)** and **[skhd](https://github.com/koekeishiya/skhd)** that cycles the active/focused window through the four screen quadrants.
-
----
-
-## 🚀 How It Works
-
-Each time the script runs, it moves and resizes the currently focused window clockwise through the 4 screen corners:
-1. **Top-Left** (State 0 $\rightarrow$ 1)
-2. **Top-Right** (State 1 $\rightarrow$ 2)
-3. **Bottom-Right** (State 2 $\rightarrow$ 3)
-4. **Bottom-Left** (State 3 $\rightarrow$ 0)
-
-The script queries the active display frame dimensions via `yabai` and `jq`, calculates quadrant bounds dynamically (with custom padding adjustments), and tracks state in `/tmp/yabai-quarter-state`.
+Custom **[yabai](https://github.com/koekeishiya/yabai)** and **[skhd](https://github.com/koekeishiya/skhd)** macOS window management configuration with hybrid tiling/floating support, interactive visual window switcher overlay, quadrant cycling, and Rectangle-style snap bindings.
 
 ---
 
-## 📋 Prerequisites & Installation
+## ✨ Features
 
-Make sure you have `yabai`, `skhd`, and `jq` installed:
+### 1. Interactive Visual Window Switcher (`Alt` / `Option` Overlay)
+- **Hold `Alt` / `Option`**:
+  - Dims the screen (40% transparent backdrop).
+  - Highlights currently focused window with a **Nord/Hyprland-inspired soft ice-blue ambient glow** (`#94B3DC`).
+  - Displays compact numbered badges (`1`, `2`, `3` ...) in the top-left corner of each visible window (ordered spatially top-to-bottom, left-to-right).
+  - Displays a clean mechanical spacebar HUD at the bottom indicating layout toggle action (`switch to bsp` / `switch to float`).
+- **Press `1` – `9`**: Focuses that window immediately. Focus state and glow update instantly without needing to release `Alt`.
+- **Press `Space` while holding `Alt`**: Toggles layout between `bsp` and `float` on the fly.
+- **Release `Alt`**: Dismisses overlay smoothly if no key is pressed.
+
+### 2. Seamless BSP $\leftrightarrow$ Float Layout Toggle (`Alt + Space`)
+- **Float Mode (Default)**: Windows float freely and can be placed using snap hotkeys.
+- **BSP Mode (Tiling)**:
+  - Automatically unfloats and tiles all standard windows, including apps with dialog subroles (e.g. `Messages`, `FaceTime`, `Spotify`).
+  - Preserves spatial positions of windows when switching back and forth.
+  - Automatically balances all window sizes evenly across the space.
+
+### 3. Directional Snap & Split Controls (Works in both Float and BSP)
+- When in **Float Mode**: snaps the active window to fractions of the screen.
+- When in **BSP Mode**: warps/swaps the active window into the target direction slot and automatically re-balances adjacent windows so all windows fit evenly.
+
+| Hotkey | Action | Description |
+| :--- | :--- | :--- |
+| `Shift + Cmd + J` | **Left Half** | Snaps to left half / warps left in BSP |
+| `Shift + Cmd + K` | **Right Half** | Snaps to right half / warps right in BSP |
+| `Shift + Cmd + ,` | **Top Half** | Snaps to top half / warps up in BSP |
+| `Shift + Cmd + .` | **Bottom Half** | Snaps to bottom half / warps down in BSP |
+| `Shift + Cmd + Up` | **Maximize** | Fullscreen toggle (`zoom-fullscreen` in BSP) |
+| `Shift + Cmd + \` | **Smallest Size** | Shrinks window to minimum allowable bounds |
+| `Ctrl + Alt + Shift + Up` | **Maximize Height** | Full height keeping existing width & X position |
+| `Ctrl + Alt + C` | **Center** | Centers window on the active display |
+| `Ctrl + Alt + D` | **First Third** | Left 1/3 of display |
+| `Ctrl + Alt + F` | **Center Third** | Center 1/3 of display |
+| `Shift + Cmd + L` | **Last Third** | Right 1/3 of display |
+| `Shift + Cmd + U` | **First Two-Thirds** | Left 2/3 of display |
+| `Shift + Cmd + I` | **Last Two-Thirds** | Right 2/3 of display |
+| `Shift + Cmd + Down` | **Make Smaller** | Shrinks window bounds |
+| `Ctrl + Alt + =` | **Make Larger** | Expands window bounds |
+
+### 4. Direct Window Focus by Number
+| Hotkey | Action |
+| :--- | :--- |
+| `Alt + 1` | Focus 1st window (top-left) |
+| `Alt + 2` | Focus 2nd window |
+| `Alt + 3` | Focus 3rd window |
+| `Alt + 4` | Focus 4th window |
+| `Alt + 5` | Focus 5th window |
+| `Alt + 6` .. `9` | Focus 6th through 9th window |
+
+### 5. Clockwise Quarter Cycling (`Ctrl + I`)
+- Cycles focused window across the 4 corners:
+  `Top-Left` $\rightarrow$ `Top-Right` $\rightarrow$ `Bottom-Right` $\rightarrow$ `Bottom-Left`.
+
+---
+
+## 📋 Prerequisites
 
 ```bash
-# Install jq (JSON parser used for window calculations)
-brew install jq
+# Install dependencies
+brew install yabai skhd jq
 
-# Start yabai and skhd services
+# Start background services
 yabai --start-service
 skhd --start-service
 ```
 
-> **Note**: Grant Accessibility permissions to `yabai` and `skhd` when prompted in **System Settings > Privacy & Security > Accessibility**.
+> **Important**: Grant Accessibility permissions to `yabai`, `skhd`, and `alt-overlay` in **System Settings > Privacy & Security > Accessibility**.
 
 ---
 
-## ⚙️ Setup
+## ⚙️ Installation & Setup
 
-1. **Make the script executable:**
+1. **Clone the repository:**
    ```bash
-   chmod +x cycle-quarter.sh
+   git clone https://github.com/janny801/yabai-config.git ~/projects/config/yabai
+   cd ~/projects/config/yabai
    ```
 
-2. **Link or copy to your yabai config directory:**
+2. **Compile the `alt-overlay` helper:**
    ```bash
-   mkdir -p ~/.config/yabai
-   ln -s "$(pwd)/cycle-quarter.sh" ~/.config/yabai/cycle-quarter.sh
+   swiftc -O alt-overlay/main.swift -o alt-overlay/alt-overlay
    ```
 
-3. **Bind a hotkey in `~/.config/skhd/skhdrc`:**
+3. **Symlink configs to `~/.config`:**
    ```bash
-   # Cycle window across quarters on Ctrl + i
-   ctrl - i : ~/.config/yabai/cycle-quarter.sh
+   mkdir -p ~/.config/yabai ~/.config/skhd
+   ln -sfn "$(pwd)/yabairc" ~/.config/yabai/yabairc
+   ln -sfn "$(pwd)/skhdrc" ~/.config/skhd/skhdrc
+   ln -sfn "$(pwd)/window-place.sh" ~/.config/yabai/window-place.sh
+   ln -sfn "$(pwd)/toggle-layout.sh" ~/.config/yabai/toggle-layout.sh
+   ln -sfn "$(pwd)/focus-window.sh" ~/.config/yabai/focus-window.sh
+   ln -sfn "$(pwd)/cycle-quarter.sh" ~/.config/yabai/cycle-quarter.sh
+   ln -sfn "$(pwd)/alt-overlay" ~/.config/yabai/alt-overlay
    ```
 
-4. **Reload skhd:**
+4. **Restart services:**
    ```bash
+   yabai --restart-service
    skhd --reload
    ```
 
 ---
 
-## 🎮 How to Run
-
-### Method 1: Using the Hotkey (Recommended)
-- Click on any window to focus it.
-- Press **`Ctrl` + `i`** to cycle it to the next quadrant.
-- Repeatedly press **`Ctrl` + `i`** to move it around all four corners.
-
-### Method 2: Running Directly from Terminal
-You can trigger the script manually from your terminal:
-```bash
-./cycle-quarter.sh
-# or via the full path:
-~/.config/yabai/cycle-quarter.sh
-```
-
----
-
-## 🛠️ Configuration & Offsets
-
-You can customize top/bottom paddings (e.g. for status bars or docks) directly in [`cycle-quarter.sh`](cycle-quarter.sh):
-
-```sh
-TOP_ADJUST=30       # reduces height of top windows (e.g. for menu bar / sketchybar)
-BOTTOM_ADJUST=20    # pushes bottom windows down (e.g. for dock padding)
-```
-
----
-
-## 🔧 Service Management & Troubleshooting
+## 🔧 Service Management
 
 | Action | Command |
 | :--- | :--- |
-| **Start Yabai** | `yabai --start-service` |
 | **Restart Yabai** | `yabai --restart-service` |
-| **Stop Yabai** | `yabai --stop-service` |
-| **Start SKHD** | `skhd --start-service` |
 | **Restart SKHD** | `skhd --restart-service` |
 | **Reload SKHD config** | `skhd --reload` |
-| **Check Yabai status** | `yabai -m query --displays --display` |
-
-If windows do not move:
-1. Ensure the yabai background service is running (`yabai --start-service`).
-2. Verify Accessibility permissions in **macOS System Settings > Privacy & Security > Accessibility**.
-3. Check error logs at `/tmp/yabai_<user>.err.log`.
+| **Restart Overlay** | `killall alt-overlay; nohup ~/.config/yabai/alt-overlay/alt-overlay >/dev/null 2>&1 &` |

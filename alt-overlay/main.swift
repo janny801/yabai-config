@@ -196,13 +196,14 @@ class OverlayManager {
             let winY = primaryHeight - (win.frame.y + win.frame.h)
             let winH = win.frame.h
 
-            // Position small badge in top-left corner of the window with padding
-            let badgeSize: CGFloat = 36
+            // Position keycap badge in top-left corner of the window with padding
+            let badgeWidth: CGFloat = 40
+            let badgeHeight: CGFloat = 38
             let padding: CGFloat = 14
             let badgeX = winX + padding
-            let badgeY = winY + winH - badgeSize - padding
+            let badgeY = winY + winH - badgeHeight - padding
 
-            let badgeRect = NSRect(x: badgeX, y: badgeY, width: badgeSize, height: badgeSize)
+            let badgeRect = NSRect(x: badgeX, y: badgeY, width: badgeWidth, height: badgeHeight)
             let badgeWin = NSWindow(
                 contentRect: badgeRect,
                 styleMask: [.borderless],
@@ -214,7 +215,7 @@ class OverlayManager {
             badgeWin.level = NSWindow.Level(rawValue: Int(CGWindowLevelForKey(.overlayWindow)) + 1)
             badgeWin.ignoresMouseEvents = true
 
-            let badgeView = BadgeView(frame: NSRect(x: 0, y: 0, width: badgeSize, height: badgeSize), key: keyChar)
+            let badgeView = BadgeView(frame: NSRect(x: 0, y: 0, width: badgeWidth, height: badgeHeight), key: keyChar)
             badgeWin.contentView = badgeView
             badgeWin.orderFrontRegardless()
             badgeWindows.append(badgeWin)
@@ -253,27 +254,67 @@ class BadgeView: NSView {
     override func draw(_ dirtyRect: NSRect) {
         super.draw(dirtyRect)
 
-        // Draw compact circular badge
-        let circlePath = NSBezierPath(ovalIn: bounds.insetBy(dx: 2, dy: 2))
-        NSColor(white: 0.12, alpha: 0.95).setFill()
-        circlePath.fill()
+        let cornerRadius: CGFloat = 6.0
+        
+        // 1. Drop shadow / bottom 3D bevel (dark bevel underneath)
+        let bottomShadowRect = NSRect(x: 3, y: 2, width: bounds.width - 6, height: bounds.height - 5)
+        let bottomShadowPath = NSBezierPath(roundedRect: bottomShadowRect, xRadius: cornerRadius, yRadius: cornerRadius)
+        NSColor(white: 0.08, alpha: 0.95).setFill()
+        bottomShadowPath.fill()
 
-        NSColor(calibratedRed: 0.35, green: 0.65, blue: 1.0, alpha: 0.9).setStroke()
-        circlePath.lineWidth = 2.0
-        circlePath.stroke()
-
-        // Single centered letter (G, H, J, K, L)
-        let keyText = "\(key)"
-        let keyAttrs: [NSAttributedString.Key: Any] = [
-            .font: NSFont.systemFont(ofSize: 18, weight: .bold),
-            .foregroundColor: NSColor.white
-        ]
-        let keySize = keyText.size(withAttributes: keyAttrs)
-        let keyPoint = NSPoint(
-            x: (bounds.width - keySize.width) / 2,
-            y: (bounds.height - keySize.height) / 2 - 1
+        // 2. Main keycap body (raised slightly for mechanical key look)
+        let keyRect = NSRect(x: 3, y: 5, width: bounds.width - 6, height: bounds.height - 7)
+        let keyPath = NSBezierPath(roundedRect: keyRect, xRadius: cornerRadius, yRadius: cornerRadius)
+        
+        // Grayscale subtle gradient top-to-bottom
+        let gradient = NSGradient(
+            starting: NSColor(white: 0.24, alpha: 0.98),
+            ending: NSColor(white: 0.14, alpha: 0.98)
         )
-        keyText.draw(at: keyPoint, withAttributes: keyAttrs)
+        gradient?.draw(in: keyPath, angle: -90)
+
+        // 3. Subtle top highlight inner stroke
+        let highlightPath = NSBezierPath(roundedRect: keyRect.insetBy(dx: 1, dy: 1), xRadius: cornerRadius - 1, yRadius: cornerRadius - 1)
+        NSColor(white: 0.35, alpha: 0.6).setStroke()
+        highlightPath.lineWidth = 1.0
+        highlightPath.stroke()
+
+        // 4. Subtle outer border (grayscale)
+        NSColor(white: 0.45, alpha: 0.85).setStroke()
+        keyPath.lineWidth = 1.2
+        keyPath.stroke()
+
+        // 5. Centered key label with pixel/monospace font
+        let keyFont = NSFont(name: "Press Start 2P", size: 14) ?? NSFont.monospacedSystemFont(ofSize: 15, weight: .black)
+        let paragraphStyle = NSMutableParagraphStyle()
+        paragraphStyle.alignment = .center
+
+        let keyAttrs: [NSAttributedString.Key: Any] = [
+            .font: keyFont,
+            .foregroundColor: NSColor(white: 0.96, alpha: 1.0),
+            .paragraphStyle: paragraphStyle
+        ]
+        
+        let keyText = "\(key)"
+        let keySize = keyText.size(withAttributes: keyAttrs)
+        let textY = keyRect.origin.y + (keyRect.height - keySize.height) / 2.0 - 0.5
+        let textRect = NSRect(
+            x: keyRect.origin.x,
+            y: textY,
+            width: keyRect.width,
+            height: keySize.height
+        )
+        
+        // Subtle dark text shadow for 3D engraved look
+        let shadowAttrs: [NSAttributedString.Key: Any] = [
+            .font: keyFont,
+            .foregroundColor: NSColor(white: 0.05, alpha: 0.8),
+            .paragraphStyle: paragraphStyle
+        ]
+        let shadowRect = NSRect(x: textRect.origin.x, y: textRect.origin.y - 1.0, width: textRect.width, height: textRect.height)
+        keyText.draw(in: shadowRect, withAttributes: shadowAttrs)
+
+        keyText.draw(in: textRect, withAttributes: keyAttrs)
     }
 }
 

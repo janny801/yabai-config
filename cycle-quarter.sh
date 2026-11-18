@@ -37,16 +37,21 @@ dy=$(echo "$d" | jq '.y | floor')
 dw=$(echo "$d" | jq '.w | floor')
 dh=$(echo "$d" | jq '.h | floor')
 
-# External bar clearance offset (sketchybar height 28 + padding)
+# Offsets for sketchybar / padding / gaps (consistent with window-place.sh)
 TOP_OFFSET=36
+GAP=10
+USABLE_H=$((dh - TOP_OFFSET - GAP))
 USABLE_Y=$((dy + TOP_OFFSET))
-USABLE_H=$((dh - TOP_OFFSET))
 
-hw=$((dw / 2))
-hh=$((USABLE_H / 2))
+# Width and height for quarters with uniform outer padding and inner gaps
+w=$(( (dw - GAP * 3) / 2 ))
+h=$(( (USABLE_H - GAP) / 2 ))
 
-hh_top=$((hh - TOP_ADJUST))
-hh_bottom=$((hh - BOTTOM_ADJUST))
+x_left=$(( dx + GAP ))
+x_right=$(( dx + GAP * 2 + w ))
+
+y_top=$(( USABLE_Y ))
+y_bottom=$(( USABLE_Y + h + GAP ))
 
 # Ensure window is floating
 is_floating=$(echo "$win" | jq -r '.["is-floating"]')
@@ -67,22 +72,22 @@ apply_pos() {
 case "$state" in
   0)
     # top-left
-    apply_pos "$dx" "$USABLE_Y" "$hw" "$hh_top"
+    apply_pos "$x_left" "$y_top" "$w" "$h"
     next=1
     ;;
   1)
     # top-right
-    apply_pos "$((dx + hw))" "$USABLE_Y" "$hw" "$hh_top"
+    apply_pos "$x_right" "$y_top" "$w" "$h"
     next=2
     ;;
   2)
     # bottom-right
-    apply_pos "$((dx + hw))" "$((USABLE_Y + hh + BOTTOM_ADJUST))" "$hw" "$hh_bottom"
+    apply_pos "$x_right" "$y_bottom" "$w" "$h"
     next=3
     ;;
   3)
     # bottom-left
-    apply_pos "$dx" "$((USABLE_Y + hh + BOTTOM_ADJUST))" "$hw" "$hh_bottom"
+    apply_pos "$x_left" "$y_bottom" "$w" "$h"
     next=0
     ;;
 esac

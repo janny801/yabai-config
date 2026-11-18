@@ -59,4 +59,4 @@ ctrl + alt - d  : ~/.config/yabai/window-place.sh first-third
 ctrl + alt - f  : ~/.config/yabai/window-place.sh center-third
 shift + cmd - l : ~/.config/yabai/window-place.sh last-third
 shift + cmd - u : ~/.config/yabai/window-place.sh first-two-thirds
-shift + cmd - i : ~/.config/yabai/window-place.sh last-two-thirds
+shift + cmd - i : ~/.config/yabai/window-place.sh last-third

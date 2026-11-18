@@ -13,7 +13,7 @@ if [ "$CUR_TYPE" = "bsp" ]; then
     yabai -m space --layout float
     
     # Re-float all standard managed windows on current space
-    yabai -m query --windows --space | jq -r '.[] | select(.["is-visible"] == true and .["is-minimized"] == false and .role == "AXWindow" and .subrole == "AXStandardWindow" and .["is-floating"] == false) | .id' | while read -r wid; do
+    yabai -m query --windows --space | jq -r '.[] | select(.["is-visible"] == true and .["is-minimized"] == false and .role == "AXWindow" and .["is-floating"] == false) | .id' | while read -r wid; do
         [ -n "$wid" ] && yabai -m window "$wid" --toggle float 2>/dev/null
     done
     
@@ -35,14 +35,14 @@ if [ "$CUR_TYPE" = "bsp" ]; then
 else
     # Switching from Float -> BSP
     # Save positions of all visible floating standard windows on this space
-    yabai -m query --windows --space | jq '[.[] | select(.["is-visible"] == true and .["is-minimized"] == false and .role == "AXWindow" and .subrole == "AXStandardWindow") | {id: .id, x: (.frame.x | floor), y: (.frame.y | floor), w: (.frame.w | floor), h: (.frame.h | floor)}]' > "$STATE_FILE"
+    yabai -m query --windows --space | jq '[.[] | select(.["is-visible"] == true and .["is-minimized"] == false and .role == "AXWindow") | {id: .id, x: (.frame.x | floor), y: (.frame.y | floor), w: (.frame.w | floor), h: (.frame.h | floor)}]' > "$STATE_FILE"
     
     # Record original window center positions before tiling
     python3 - << 'PYEOF'
 import json, subprocess
 
 raw_wins = subprocess.check_output(["yabai", "-m", "query", "--windows", "--space"])
-wins = [w for w in json.loads(raw_wins) if w.get("is-visible") and not w.get("is-minimized") and w.get("role") == "AXWindow" and w.get("subrole") == "AXStandardWindow"]
+wins = [w for w in json.loads(raw_wins) if w.get("is-visible") and not w.get("is-minimized") and w.get("role") == "AXWindow"]
 
 # Save id to original center (cx, cy)
 orig_centers = {}
@@ -57,8 +57,8 @@ PYEOF
     # Switch layout to BSP
     yabai -m space --layout bsp
 
-    # Unfloat all standard windows and balance space
-    yabai -m query --windows --space | jq -r '.[] | select(.["is-minimized"] == false and .["is-floating"] == true and .role == "AXWindow" and .subrole == "AXStandardWindow") | .id' | while read -r wid; do
+    # Unfloat all managed windows and balance space
+    yabai -m query --windows --space | jq -r '.[] | select(.["is-minimized"] == false and .["is-floating"] == true and .role == "AXWindow") | .id' | while read -r wid; do
         [ -n "$wid" ] && yabai -m window "$wid" --toggle float 2>/dev/null
     done
     yabai -m space --balance 2>/dev/null

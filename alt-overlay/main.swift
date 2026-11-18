@@ -108,7 +108,6 @@ class OverlayManager {
                         let win = self.activeWindows[targetIdx]
                         self.focusWindow(win: win)
                     }
-                    self.hideOverlay()
                 }
                 // Suppress key press so it doesn't type into the active window
                 return nil

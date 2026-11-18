@@ -18,6 +18,7 @@ try:
     cur_win = json.loads(subprocess.check_output(["yabai", "-m", "query", "--windows", "--window"]))
     space_wins = json.loads(subprocess.check_output(["yabai", "-m", "query", "--windows", "--space"]))
     disp_frame = json.loads(subprocess.check_output(["yabai", "-m", "query", "--displays", "--display"]))["frame"]
+    all_displays = json.loads(subprocess.check_output(["yabai", "-m", "query", "--displays"]))
 except Exception:
     sys.exit(0)
 
@@ -31,17 +32,44 @@ if action == "maximize":
     subprocess.run(["yabai", "-m", "window", "--toggle", "zoom-fullscreen"], capture_output=True)
     sys.exit(0)
 
+def cycle_display_if_needed(target_state_name):
+    if len(all_displays) <= 1:
+        return False
+    state_file = f"/tmp/yabai-bsp-slot-{cur_id}"
+    last_action = ""
+    try:
+        with open(state_file, "r") as f:
+            last_action = f.read().strip()
+    except Exception:
+        pass
+    with open(state_file, "w") as f:
+        f.write(target_state_name)
+
+    if last_action == target_state_name:
+        # Move to next display
+        subprocess.run(["yabai", "-m", "window", str(cur_id), "--display", "next"], capture_output=True)
+        subprocess.run(["yabai", "-m", "window", "--focus", str(cur_id)], capture_output=True)
+        subprocess.run(["yabai", "-m", "space", "--balance"], capture_output=True)
+        return True
+    return False
+
 other_ids = [w["id"] for w in managed if w["id"] != cur_id]
 if not other_ids:
+    if action in ["left-half", "right-half", "first-third", "last-third", "first-two-thirds", "last-two-thirds"]:
+        cycle_display_if_needed(action)
     sys.exit(0)
 
 target_dir = None
 fraction = 0.5
 
 if action == "left-half":
+    if cycle_display_if_needed("left-half"):
+        sys.exit(0)
     target_dir = "left"
     fraction = 0.5
 elif action == "right-half":
+    if cycle_display_if_needed("right-half"):
+        sys.exit(0)
     target_dir = "right"
     fraction = 0.5
 elif action == "top-half":
@@ -51,28 +79,39 @@ elif action == "bottom-half":
     target_dir = "bottom"
     fraction = 0.5
 elif action in ["first-third", "last-third", "cycle-third"]:
-    # 3-way cycle: left (1st) -> center (2nd) -> right (3rd) -> left...
+    # 3-way cycle: left (1st) -> center (2nd) -> right (3rd) -> next display...
     cur_w = cur_win["frame"]["w"]
     cur_x = cur_win["frame"]["x"]
     is_third = cur_w < disp_frame["w"] * 0.45
-    # Relative x position across display
     rel_x = (cur_x - disp_frame["x"]) / max(disp_frame["w"], 1.0)
     
     if is_third and rel_x < 0.25:
         target_dir = "center"
     elif is_third and 0.25 <= rel_x <= 0.50:
         target_dir = "right"
+    elif is_third and rel_x > 0.50 and len(all_displays) > 1:
+        # At right 1/3, trigger cycle to next display
+        subprocess.run(["yabai", "-m", "window", str(cur_id), "--display", "next"], capture_output=True)
+        subprocess.run(["yabai", "-m", "window", "--focus", str(cur_id)], capture_output=True)
+        subprocess.run(["yabai", "-m", "space", "--balance"], capture_output=True)
+        sys.exit(0)
     else:
         target_dir = "left"
     fraction = 1.0 / 3.0
 elif action in ["first-two-thirds", "two-thirds", "cycle-two-thirds"]:
-    # Check if currently left two-thirds -> cycle to right two-thirds
+    # Check if currently left two-thirds -> cycle to right two-thirds -> next display...
     cur_w = cur_win["frame"]["w"]
     cur_x = cur_win["frame"]["x"]
     is_wide = cur_w > disp_frame["w"] * 0.58
     is_left = cur_x < disp_frame["w"] * 0.2
     if is_wide and is_left:
         target_dir = "right"
+    elif is_wide and not is_left and len(all_displays) > 1:
+        # At right 2/3, cycle to next display
+        subprocess.run(["yabai", "-m", "window", str(cur_id), "--display", "next"], capture_output=True)
+        subprocess.run(["yabai", "-m", "window", "--focus", str(cur_id)], capture_output=True)
+        subprocess.run(["yabai", "-m", "space", "--balance"], capture_output=True)
+        sys.exit(0)
     else:
         target_dir = "left"
     fraction = 2.0 / 3.0
@@ -197,6 +236,7 @@ fi
 
 # Query current window frame BEFORE changing anything
 win=$(yabai -m query --windows --window)
+cur_win_id=$(echo "$win" | jq '.id')
 is_floating=$(echo "$win" | jq '.["is-floating"]')
 cur_x=$(echo "$win" | jq '.frame.x | floor')
 cur_y=$(echo "$win" | jq '.frame.y | floor')
@@ -228,6 +268,23 @@ abs() {
   fi
 }
 
+num_displays=$(yabai -m query --displays | jq 'length')
+
+cycle_to_next_display() {
+  if [ "$num_displays" -gt 1 ]; then
+    yabai -m window "$cur_win_id" --display next
+    yabai -m window --focus "$cur_win_id"
+    # Re-query display dimensions on new screen
+    d=$(yabai -m query --displays --display | jq '.frame')
+    dx=$(echo "$d" | jq '.x | floor')
+    dy=$(echo "$d" | jq '.y | floor')
+    dw=$(echo "$d" | jq '.w | floor')
+    dh=$(echo "$d" | jq '.h | floor')
+    USABLE_H=$((dh - TOP_OFFSET - GAP))
+    USABLE_Y=$((dy + TOP_OFFSET))
+  fi
+}
+
 # Helper: always move first, then resize, so screen edges never constrain resize
 apply_geometry() {
   target_x=$1
@@ -244,6 +301,16 @@ case "$ACTION" in
     h=$(( USABLE_H - GAP ))
     x=$(( dx + GAP ))
     y=$(( USABLE_Y ))
+
+    diff_x=$(abs $(( cur_x - x )))
+    diff_w=$(abs $(( cur_w - w )))
+    if [ "$diff_x" -le 35 ] && [ "$diff_w" -le 35 ] && [ "$num_displays" -gt 1 ]; then
+      cycle_to_next_display
+      w=$(( (dw - GAP * 3) / 2 ))
+      h=$(( USABLE_H - GAP ))
+      x=$(( dx + GAP ))
+      y=$(( USABLE_Y ))
+    fi
     apply_geometry $x $y $w $h
     ;;
   "right-half")
@@ -251,6 +318,16 @@ case "$ACTION" in
     h=$(( USABLE_H - GAP ))
     x=$(( dx + GAP * 2 + w ))
     y=$(( USABLE_Y ))
+
+    diff_x=$(abs $(( cur_x - x )))
+    diff_w=$(abs $(( cur_w - w )))
+    if [ "$diff_x" -le 35 ] && [ "$diff_w" -le 35 ] && [ "$num_displays" -gt 1 ]; then
+      cycle_to_next_display
+      w=$(( (dw - GAP * 3) / 2 ))
+      h=$(( USABLE_H - GAP ))
+      x=$(( dx + GAP * 2 + w ))
+      y=$(( USABLE_Y ))
+    fi
     apply_geometry $x $y $w $h
     ;;
   "top-half")
@@ -279,11 +356,16 @@ case "$ACTION" in
     diff_right=$(abs $(( cur_x - x_right )))
     diff_w=$(abs $(( cur_w - unit )))
     
-    # 3-way cycle: left -> center -> right -> left...
+    # 3-way cycle: left -> center -> right -> (next display) left...
     if [ "$diff_w" -le 35 ] && [ "$diff_left" -le 35 ]; then
       x=$x_center
     elif [ "$diff_w" -le 35 ] && [ "$diff_center" -le 35 ]; then
       x=$x_right
+    elif [ "$diff_w" -le 35 ] && [ "$diff_right" -le 35 ] && [ "$num_displays" -gt 1 ]; then
+      cycle_to_next_display
+      unit=$(( (dw - GAP * 4) / 3 ))
+      h=$(( USABLE_H - GAP ))
+      x=$(( dx + GAP ))
     else
       x=$x_left
     fi
@@ -306,11 +388,19 @@ case "$ACTION" in
     
     # Check if currently near left two-thirds or right two-thirds
     diff_left=$(abs $(( cur_x - x_left )))
+    diff_right=$(abs $(( cur_x - x_right )))
     diff_w=$(abs $(( cur_w - w )))
     
-    if [ "$diff_w" -le 30 ] && [ "$diff_left" -le 30 ]; then
+    if [ "$diff_w" -le 35 ] && [ "$diff_left" -le 35 ]; then
       # Currently left 2/3 -> cycle to right 2/3
       x=$x_right
+    elif [ "$diff_w" -le 35 ] && [ "$diff_right" -le 35 ] && [ "$num_displays" -gt 1 ]; then
+      # Currently right 2/3 -> cycle to next display left 2/3
+      cycle_to_next_display
+      unit=$(( (dw - GAP * 4) / 3 ))
+      w=$(( unit * 2 + GAP ))
+      h=$(( USABLE_H - GAP ))
+      x=$(( dx + GAP ))
     else
       # Otherwise go to left 2/3
       x=$x_left

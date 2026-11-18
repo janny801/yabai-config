@@ -85,6 +85,15 @@ case "$ACTION" in
     yabai -m window --resize abs:$w:$h
     yabai -m window --move abs:$x:$y
     ;;
+  "last-two-thirds")
+    unit=$(( (dw - GAP * 4) / 3 ))
+    w=$(( unit * 2 + GAP ))
+    h=$(( USABLE_H - GAP ))
+    x=$(( dx + GAP * 2 + unit ))
+    y=$(( USABLE_Y ))
+    yabai -m window --resize abs:$w:$h
+    yabai -m window --move abs:$x:$y
+    ;;
   "center")
     w=$(yabai -m query --windows --window | jq '.frame.w | floor')
     h=$(yabai -m query --windows --window | jq '.frame.h | floor')

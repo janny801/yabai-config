@@ -76,11 +76,20 @@ case "$ACTION" in
     yabai -m window --resize abs:$w:$h
     yabai -m window --move abs:$x:$y
     ;;
-  "first-two-thirds")
+  "two-thirds"|"first-two-thirds"|"cycle-two-thirds")
     unit=$(( (dw - GAP * 4) / 3 ))
     w=$(( unit * 2 + GAP ))
     h=$(( USABLE_H - GAP ))
-    x=$(( dx + GAP ))
+    x_left=$(( dx + GAP ))
+    x_right=$(( dx + GAP * 2 + unit ))
+    cur_x=$(yabai -m query --windows --window | jq '.frame.x | floor')
+    # If already at left two-thirds (within 15px), cycle to right two-thirds; otherwise go left
+    diff=$(( cur_x - x_left ))
+    if [ "${diff#-}" -le 15 ]; then
+      x=$x_right
+    else
+      x=$x_left
+    fi
     y=$(( USABLE_Y ))
     yabai -m window --resize abs:$w:$h
     yabai -m window --move abs:$x:$y

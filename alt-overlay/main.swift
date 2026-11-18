@@ -195,12 +195,11 @@ class OverlayManager {
             let winY = primaryHeight - (win.frame.y + win.frame.h)
             let winH = win.frame.h
 
-            // Position keycap badge in top-left corner of the window with padding
-            let badgeWidth: CGFloat = 40
-            let badgeHeight: CGFloat = 38
-            let padding: CGFloat = 14
-            let badgeX = winX + padding
-            let badgeY = winY + winH - badgeHeight - padding
+            // Position keycap badge flush with top-left of each window
+            let badgeWidth: CGFloat = 36
+            let badgeHeight: CGFloat = 34
+            let badgeX = winX
+            let badgeY = winY + winH - badgeHeight
 
             let badgeRect = NSRect(x: badgeX, y: badgeY, width: badgeWidth, height: badgeHeight)
             let badgeWin = NSWindow(

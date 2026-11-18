@@ -24,8 +24,8 @@ shift + cmd - k : ~/.config/yabai/window-place.sh right-half
 shift + cmd - 0x27 : ~/.config/yabai/window-place.sh top-half
 shift + cmd - 0x2F : ~/.config/yabai/window-place.sh bottom-half
 
-# Maximize / Zoom Fullscreen
-shift + cmd - up : yabai -m window --toggle zoom-fullscreen
+# Maximize / Zoom Fullscreen (works in float and bsp)
+shift + cmd - up : yabai -m window --toggle zoom-fullscreen 2>/dev/null || ~/.config/yabai/window-place.sh maximize
 
 # Maximize Height
 ctrl + alt + shift - up : ~/.config/yabai/window-place.sh maximize-height

@@ -51,6 +51,8 @@ class OverlayManager {
     private var glowWindows: [NSWindow] = []
     private var bottomHudWindow: NSWindow?
     private var activeWindows: [YabaiWindow] = []
+    private var currentFocusedId: Int?
+    private var isAltDown = false
     private var isOverlayActive = false
     private var eventTap: CFMachPort?
     private var runLoopSource: CFRunLoopSource?
@@ -94,6 +96,7 @@ class OverlayManager {
         if type == .flagsChanged {
             DispatchQueue.main.async { [weak self] in
                 guard let self = self else { return }
+                self.isAltDown = isAltPressed
                 if isAltPressed && !self.isOverlayActive {
                     self.showOverlay()
                 } else if !isAltPressed && self.isOverlayActive {
@@ -110,10 +113,14 @@ class OverlayManager {
                     guard let self = self else { return }
                     if targetIdx < self.activeWindows.count {
                         let win = self.activeWindows[targetIdx]
+                        self.currentFocusedId = win.id
                         self.focusWindow(win: win)
-                        // Refresh overlay immediately so glow and cutouts update to newly focused window
-                        self.hideOverlay()
-                        self.showOverlay()
+                        // Immediate visual refresh: only rebuild if Alt is still held
+                        if self.isAltDown {
+                            self.hideOverlay()
+                            self.currentFocusedId = win.id
+                            self.showOverlay()
+                        }
                     }
                 }
                 // Suppress key press so it doesn't type into the active window
@@ -218,8 +225,14 @@ class OverlayManager {
         guard let primaryScreen = NSScreen.screens.first else { return }
         let primaryHeight = primaryScreen.frame.height
 
-        // 1. Create dimming overlay for each screen with cutout for focused window
-        let focusedWindow = activeWindows.first(where: { $0.hasFocus == true })
+        // Determine currently focused window (prefer active yabai state, or fallback to currentFocusedId)
+        let focusedWindow: YabaiWindow?
+        if let targetId = currentFocusedId, let win = activeWindows.first(where: { $0.id == targetId }) {
+            focusedWindow = win
+        } else {
+            focusedWindow = activeWindows.first(where: { $0.hasFocus == true })
+            currentFocusedId = focusedWindow?.id
+        }
         for screen in NSScreen.screens {
             let dimWin = NSWindow(
                 contentRect: screen.frame,
@@ -350,6 +363,7 @@ class OverlayManager {
     private func hideOverlay() {
         guard isOverlayActive else { return }
         isOverlayActive = false
+        currentFocusedId = nil
 
         for win in darkWindows {
             win.orderOut(nil)

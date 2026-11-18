@@ -261,10 +261,10 @@ class OverlayManager {
             badgeWindows.append(badgeWin)
         }
 
-        // 3. Bottom HUD indicator: Spacebar icon + "switch to bsp" / "switch to float"
+        // 3. Bottom HUD indicator: Spacebar keycap with "switch to bsp" / "switch to float" inside
         let targetMode = (currentSpaceType == "bsp") ? "float" : "bsp"
-        let hudWidth: CGFloat = 220
-        let hudHeight: CGFloat = 40
+        let hudWidth: CGFloat = 200
+        let hudHeight: CGFloat = 38
         let hudX = (primaryScreen.frame.width - hudWidth) / 2.0
         let hudY: CGFloat = 28 // 28px from bottom of screen
 
@@ -322,56 +322,66 @@ class BottomHudView: NSView {
     override func draw(_ dirtyRect: NSRect) {
         super.draw(dirtyRect)
 
-        // Rounded HUD pill
-        let bgPath = NSBezierPath(roundedRect: bounds.insetBy(dx: 1, dy: 1), xRadius: 8, yRadius: 8)
-        NSColor(calibratedRed: 0.08, green: 0.08, blue: 0.12, alpha: 0.88).setFill()
-        bgPath.fill()
-
-        NSColor(white: 0.28, alpha: 0.8).setStroke()
-        bgPath.lineWidth = 1.0
-        bgPath.stroke()
-
-        // Spacebar keycap
-        let keyRect = NSRect(x: 12, y: 7, width: 44, height: 26)
-        let keyPath = NSBezierPath(roundedRect: keyRect, xRadius: 5, yRadius: 5)
-
-        // Bottom 3D shadow
-        let shadowRect = NSRect(x: 12, y: 5, width: 44, height: 26)
-        let shadowPath = NSBezierPath(roundedRect: shadowRect, xRadius: 5, yRadius: 5)
-        NSColor(white: 0.06, alpha: 0.95).setFill()
+        let cornerRadius: CGFloat = 6.0
+        
+        // 1. Drop shadow / 3D bottom bevel
+        let shadowRect = NSRect(x: 4, y: 2, width: bounds.width - 8, height: bounds.height - 5)
+        let shadowPath = NSBezierPath(roundedRect: shadowRect, xRadius: cornerRadius, yRadius: cornerRadius)
+        NSColor(white: 0.08, alpha: 0.95).setFill()
         shadowPath.fill()
 
+        // 2. Main mechanical spacebar body
+        let keyRect = NSRect(x: 4, y: 5, width: bounds.width - 8, height: bounds.height - 7)
+        let keyPath = NSBezierPath(roundedRect: keyRect, xRadius: cornerRadius, yRadius: cornerRadius)
+
         let gradient = NSGradient(
-            starting: NSColor(white: 0.25, alpha: 0.98),
-            ending: NSColor(white: 0.15, alpha: 0.98)
+            starting: NSColor(white: 0.24, alpha: 0.98),
+            ending: NSColor(white: 0.14, alpha: 0.98)
         )
         gradient?.draw(in: keyPath, angle: -90)
 
+        // 3. Top highlight inner stroke
+        let highlightPath = NSBezierPath(roundedRect: keyRect.insetBy(dx: 1, dy: 1), xRadius: cornerRadius - 1, yRadius: cornerRadius - 1)
+        NSColor(white: 0.35, alpha: 0.6).setStroke()
+        highlightPath.lineWidth = 1.0
+        highlightPath.stroke()
+
+        // 4. Outer border (grayscale)
         NSColor(white: 0.45, alpha: 0.85).setStroke()
-        keyPath.lineWidth = 1.0
+        keyPath.lineWidth = 1.2
         keyPath.stroke()
 
-        // Spacebar icon: wide horizontal bracket [________]
-        let iconPath = NSBezierPath()
-        iconPath.move(to: NSPoint(x: keyRect.midX - 12, y: keyRect.midY + 2))
-        iconPath.line(to: NSPoint(x: keyRect.midX - 12, y: keyRect.midY - 2))
-        iconPath.line(to: NSPoint(x: keyRect.midX + 12, y: keyRect.midY - 2))
-        iconPath.line(to: NSPoint(x: keyRect.midX + 12, y: keyRect.midY + 2))
-        iconPath.lineWidth = 1.8
-        iconPath.lineCapStyle = .round
-        NSColor(white: 0.95, alpha: 1.0).setStroke()
-        iconPath.stroke()
-
-        // Action label text: "switch to bsp" or "switch to float"
-        let font = NSFont(name: "Press Start 2P", size: 9) ?? NSFont.monospacedSystemFont(ofSize: 11, weight: .bold)
+        // 5. Centered action text inside the spacebar
+        let font = NSFont(name: "Press Start 2P", size: 10) ?? NSFont.monospacedSystemFont(ofSize: 11, weight: .bold)
         let labelText = "switch to \(targetMode)"
-        let attrs: [NSAttributedString.Key: Any] = [
+        let paragraphStyle = NSMutableParagraphStyle()
+        paragraphStyle.alignment = .center
+
+        let textAttrs: [NSAttributedString.Key: Any] = [
             .font: font,
-            .foregroundColor: NSColor(white: 0.90, alpha: 1.0)
+            .foregroundColor: NSColor(white: 0.96, alpha: 1.0),
+            .paragraphStyle: paragraphStyle
         ]
-        let textSize = labelText.size(withAttributes: attrs)
-        let textPoint = NSPoint(x: 66, y: (bounds.height - textSize.height) / 2.0)
-        labelText.draw(at: textPoint, withAttributes: attrs)
+        
+        let textSize = labelText.size(withAttributes: textAttrs)
+        let textY = keyRect.origin.y + (keyRect.height - textSize.height) / 2.0 - 0.5
+        let textRect = NSRect(
+            x: keyRect.origin.x,
+            y: textY,
+            width: keyRect.width,
+            height: textSize.height
+        )
+
+        // Subtle dark engraved shadow
+        let shadowAttrs: [NSAttributedString.Key: Any] = [
+            .font: font,
+            .foregroundColor: NSColor(white: 0.05, alpha: 0.8),
+            .paragraphStyle: paragraphStyle
+        ]
+        let textShadowRect = NSRect(x: textRect.origin.x, y: textRect.origin.y - 1.0, width: textRect.width, height: textRect.height)
+        labelText.draw(in: textShadowRect, withAttributes: shadowAttrs)
+
+        labelText.draw(in: textRect, withAttributes: textAttrs)
     }
 }
 

@@ -1,3 +1,5 @@
 .DS_Store
 *.swp
 *.swo
+alt-overlay/alt-overlay
+alt-overlay/build

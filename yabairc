@@ -38,4 +38,11 @@ yabai -m rule --add app="^Calculator$" manage=off
 yabai -m rule --add app="^Activity Monitor$" manage=off
 yabai -m rule --add app="^Rectangle$" manage=off
 
+# Alt Overlay Helper (darkens screen and shows numbers/keys when alt held)
+OVERLAY_BIN="$HOME/.config/yabai/alt-overlay/alt-overlay"
+if [ -x "$OVERLAY_BIN" ]; then
+    killall alt-overlay 2>/dev/null
+    nohup "$OVERLAY_BIN" >/dev/null 2>&1 &
+fi
+
 echo "yabai configuration loaded."

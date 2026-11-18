@@ -344,4 +344,8 @@ case "$ACTION" in
     h=$(( USABLE_H - GAP ))
     apply_geometry $cur_x $USABLE_Y $w $h
     ;;
+  "minimize-size"|"smallest")
+    # Resize window to minimum allowed size (macOS clamps to app min bounds)
+    apply_geometry $cur_x $cur_y 1 1
+    ;;
 esac

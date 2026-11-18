@@ -31,18 +31,15 @@ yabai -m config mouse_action1                move
 yabai -m config mouse_action2                resize
 yabai -m config mouse_drop_action            swap
 
+# Manage all standard windows and dialog windows across all apps by default
+yabai -m rule --add role="^AXWindow$" manage=on
+
 # Window Rules (Float dialogs & system utility apps)
 yabai -m rule --add app="^System Settings$" manage=off
 yabai -m rule --add app="^Archive Utility$" manage=off
 yabai -m rule --add app="^Calculator$" manage=off
 yabai -m rule --add app="^Activity Monitor$" manage=off
 yabai -m rule --add app="^Rectangle$" manage=off
-
-# Explicitly tile apps that macOS marks as AXDialog or custom Electron frames
-yabai -m rule --add app="^Messages$" subrole="^AXDialog$" manage=on
-yabai -m rule --add app="^FaceTime$" manage=on
-yabai -m rule --add app="^FaceTime$" subrole="^AXDialog$" manage=on
-yabai -m rule --add app="^Spotify$" manage=on
 
 # Alt Overlay Helper (darkens screen and shows numbers/keys when alt held)
 OVERLAY_BIN="$HOME/.config/yabai/alt-overlay/alt-overlay"

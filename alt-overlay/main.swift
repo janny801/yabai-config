@@ -19,12 +19,14 @@ struct YabaiWindow: Decodable {
     let isVisible: Bool
     let isMinimized: Bool
     let isHidden: Bool
+    let hasFocus: Bool?
 
     enum CodingKeys: String, CodingKey {
         case id, pid, app, title, role, frame
         case isVisible = "is-visible"
         case isMinimized = "is-minimized"
         case isHidden = "is-hidden"
+        case hasFocus = "has-focus"
     }
 }
 
@@ -46,6 +48,7 @@ class OverlayManager {
     
     private var darkWindows: [NSWindow] = []
     private var badgeWindows: [NSWindow] = []
+    private var glowWindows: [NSWindow] = []
     private var bottomHudWindow: NSWindow?
     private var activeWindows: [YabaiWindow] = []
     private var isOverlayActive = false

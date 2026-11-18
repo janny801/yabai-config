@@ -8,7 +8,7 @@ ACTION="$1"
 cur_space_type=$(yabai -m query --spaces --space | jq -r '.type // "float"')
 
 if [ "$cur_space_type" = "bsp" ]; then
-  # In BSP mode: place active window to occupy the desired half/side and balance the rest
+  # In BSP mode: place active window to occupy the desired fraction/slot and balance the rest
   python3 - "$ACTION" << 'PYEOF'
 import sys, json, subprocess
 
@@ -17,6 +17,7 @@ action = sys.argv[1] if len(sys.argv) > 1 else ""
 try:
     cur_win = json.loads(subprocess.check_output(["yabai", "-m", "query", "--windows", "--window"]))
     space_wins = json.loads(subprocess.check_output(["yabai", "-m", "query", "--windows", "--space"]))
+    disp_frame = json.loads(subprocess.check_output(["yabai", "-m", "query", "--displays", "--display"]))["frame"]
 except Exception:
     sys.exit(0)
 
@@ -35,14 +36,40 @@ if not other_ids:
     sys.exit(0)
 
 target_dir = None
-if action in ["left-half", "first-third", "first-two-thirds"]:
+fraction = 0.5
+
+if action == "left-half":
     target_dir = "left"
-elif action in ["right-half", "last-third", "last-two-thirds", "two-thirds", "cycle-two-thirds"]:
+    fraction = 0.5
+elif action == "right-half":
     target_dir = "right"
-elif action in ["top-half"]:
+    fraction = 0.5
+elif action == "top-half":
     target_dir = "top"
-elif action in ["bottom-half"]:
+    fraction = 0.5
+elif action == "bottom-half":
     target_dir = "bottom"
+    fraction = 0.5
+elif action == "first-third":
+    target_dir = "left"
+    fraction = 1.0 / 3.0
+elif action == "last-third":
+    target_dir = "right"
+    fraction = 1.0 / 3.0
+elif action in ["first-two-thirds", "two-thirds", "cycle-two-thirds"]:
+    # Check if currently left two-thirds -> cycle to right two-thirds
+    cur_w = cur_win["frame"]["w"]
+    cur_x = cur_win["frame"]["x"]
+    is_wide = cur_w > disp_frame["w"] * 0.58
+    is_left = cur_x < disp_frame["w"] * 0.2
+    if is_wide and is_left:
+        target_dir = "right"
+    else:
+        target_dir = "left"
+    fraction = 2.0 / 3.0
+elif action == "last-two-thirds":
+    target_dir = "right"
+    fraction = 2.0 / 3.0
 elif action == "center":
     subprocess.run(["yabai", "-m", "space", "--balance"], capture_output=True)
     sys.exit(0)
@@ -62,6 +89,9 @@ managed_s2 = [w for w in s2 if w["id"] in [m["id"] for m in managed]]
 solitary = max(managed_s2, key=lambda w: w["frame"]["w"] * w["frame"]["h"])
 if solitary["id"] != cur_id:
     subprocess.run(["yabai", "-m", "window", str(cur_id), "--swap", str(solitary["id"])], capture_output=True)
+    remaining_cluster = [oid for oid in other_ids if oid != solitary["id"]]
+    if remaining_cluster:
+        subprocess.run(["yabai", "-m", "window", str(solitary["id"]), "--warp", str(remaining_cluster[0])], capture_output=True)
     subprocess.run(["yabai", "-m", "space", "--balance"], capture_output=True)
 
 # 3. Orient root split axis
@@ -107,7 +137,26 @@ if not is_on_target:
         subprocess.run(["yabai", "-m", "window", str(w["id"]), "--warp", str(cluster_lead)], capture_output=True)
     subprocess.run(["yabai", "-m", "space", "--balance"], capture_output=True)
 
-# 5. Keep focus on cur_id
+# 5. Apply fraction resize if not 0.5 (e.g. 2/3 or 1/3)
+if fraction != 0.5:
+    s5 = json.loads(subprocess.check_output(["yabai", "-m", "query", "--windows", "--space"]))
+    c5 = next(w for w in s5 if w["id"] == cur_id)
+    if target_dir in ["left", "right"]:
+        target_w = disp_frame["w"] * fraction
+        diff_w = int(target_w - c5["frame"]["w"])
+        if target_dir == "left":
+            subprocess.run(["yabai", "-m", "window", str(cur_id), "--resize", f"right:{diff_w}:0"], capture_output=True)
+        else:
+            subprocess.run(["yabai", "-m", "window", str(cur_id), "--resize", f"left:{-diff_w}:0"], capture_output=True)
+    elif target_dir in ["top", "bottom"]:
+        target_h = disp_frame["h"] * fraction
+        diff_h = int(target_h - c5["frame"]["h"])
+        if target_dir == "top":
+            subprocess.run(["yabai", "-m", "window", str(cur_id), "--resize", f"bottom:0:{diff_h}"], capture_output=True)
+        else:
+            subprocess.run(["yabai", "-m", "window", str(cur_id), "--resize", f"top:0:{-diff_h}"], capture_output=True)
+
+# 6. Keep focus on cur_id
 subprocess.run(["yabai", "-m", "window", "--focus", str(cur_id)], capture_output=True)
 PYEOF
   exit 0

@@ -574,31 +574,38 @@ class GlowingOutlineView: NSView {
         super.draw(dirtyRect)
 
         let cornerRadius: CGFloat = 8.0
-        let pureWhite = NSColor.white
+        // Hyprland/Nord style soft ice-blue glow
+        let glowColor = NSColor(red: 0.58, green: 0.70, blue: 0.86, alpha: 1.0) // #94B3DC soft steel/ice blue
+        let coreColor = NSColor(red: 0.82, green: 0.90, blue: 0.98, alpha: 1.0) // bright ice core
 
-        // Multiple concentric strokes for clean white halo glow effect
-        let glowLevels: [(inset: CGFloat, alpha: CGFloat, width: CGFloat)] = [
-            (-8.0, 0.05, 8.0),
-            (-5.0, 0.12, 6.0),
-            (-3.0, 0.25, 4.0),
-            (-1.0, 0.50, 3.0),
-            ( 0.0, 0.95, 2.0)
+        // Soft atmospheric outer glow bloom (Hyprland style)
+        let bloomLevels: [(inset: CGFloat, alpha: CGFloat, width: CGFloat)] = [
+            (-12.0, 0.04, 10.0),
+            (-9.0,  0.08, 8.0),
+            (-6.0,  0.16, 6.0),
+            (-3.5,  0.30, 4.0),
+            (-1.5,  0.55, 3.0),
+            ( 0.0,  0.85, 2.5)
         ]
 
-        for level in glowLevels {
+        for level in bloomLevels {
             let rect = innerWindowRect.insetBy(dx: level.inset, dy: level.inset)
-            let path = NSBezierPath(roundedRect: rect, xRadius: cornerRadius - level.inset / 2.0, yRadius: cornerRadius - level.inset / 2.0)
-            pureWhite.withAlphaComponent(level.alpha).setStroke()
+            let path = NSBezierPath(
+                roundedRect: rect,
+                xRadius: max(2.0, cornerRadius - level.inset / 2.0),
+                yRadius: max(2.0, cornerRadius - level.inset / 2.0)
+            )
+            glowColor.withAlphaComponent(level.alpha).setStroke()
             path.lineWidth = level.width
             path.stroke()
         }
 
-        // Inner crisp white highlight rim
-        let innerHighlightRect = innerWindowRect.insetBy(dx: 1.0, dy: 1.0)
-        let innerHighlightPath = NSBezierPath(roundedRect: innerHighlightRect, xRadius: cornerRadius - 1.0, yRadius: cornerRadius - 1.0)
-        NSColor.white.withAlphaComponent(0.90).setStroke()
-        innerHighlightPath.lineWidth = 1.0
-        innerHighlightPath.stroke()
+        // Crisp solid inner border rim
+        let rimRect = innerWindowRect.insetBy(dx: 0.5, dy: 0.5)
+        let rimPath = NSBezierPath(roundedRect: rimRect, xRadius: cornerRadius, yRadius: cornerRadius)
+        coreColor.setStroke()
+        rimPath.lineWidth = 1.8
+        rimPath.stroke()
     }
 }
 

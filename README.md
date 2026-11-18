@@ -12,7 +12,7 @@ Custom **[yabai](https://github.com/koekeishiya/yabai)** and **[skhd](https://gi
 
 ### 1. Interactive Visual Window Switcher (`Alt` / `Option` Overlay)
 <p align="center">
-  <img src="assets/alt-overlay-preview.jpg" alt="Alt Overlay Window Switcher and Active Window Highlight" width="100%" />
+  <img src="assets/alt-overlay-demo.gif" alt="Alt Overlay Window Switcher and Active Window Highlight Demo" width="100%" />
 </p>
 
 - **Hold `Alt` / `Option`**:

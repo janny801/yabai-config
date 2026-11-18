@@ -8,7 +8,7 @@ ACTION="$1"
 cur_space_type=$(yabai -m query --spaces --space | jq -r '.type // "float"')
 
 if [ "$cur_space_type" = "bsp" ]; then
-  # In BSP mode: warp/swap window in the specified direction and re-balance layout
+  # In BSP mode: place active window to occupy the desired half/side and balance the rest
   python3 - "$ACTION" << 'PYEOF'
 import sys, json, subprocess
 
@@ -30,35 +30,85 @@ if action == "maximize":
     subprocess.run(["yabai", "-m", "window", "--toggle", "zoom-fullscreen"], capture_output=True)
     sys.exit(0)
 
-cur_f = cur_win["frame"]
-cur_cx = cur_f["x"] + cur_f["w"] / 2.0
-cur_cy = cur_f["y"] + cur_f["h"] / 2.0
-
-candidates = [w for w in managed if w["id"] != cur_id]
-if not candidates:
+other_ids = [w["id"] for w in managed if w["id"] != cur_id]
+if not other_ids:
     sys.exit(0)
 
-target = None
+target_dir = None
 if action in ["left-half", "first-third", "first-two-thirds"]:
-    left_wins = [w for w in candidates if (w["frame"]["x"] + w["frame"]["w"] / 2.0) < cur_cx - 20]
-    target = min(left_wins, key=lambda w: (w["frame"]["x"] + w["frame"]["w"] / 2.0)) if left_wins else min(candidates, key=lambda w: (w["frame"]["x"] + w["frame"]["w"] / 2.0))
+    target_dir = "left"
 elif action in ["right-half", "last-third", "last-two-thirds", "two-thirds", "cycle-two-thirds"]:
-    right_wins = [w for w in candidates if (w["frame"]["x"] + w["frame"]["w"] / 2.0) > cur_cx + 20]
-    target = max(right_wins, key=lambda w: (w["frame"]["x"] + w["frame"]["w"] / 2.0)) if right_wins else max(candidates, key=lambda w: (w["frame"]["x"] + w["frame"]["w"] / 2.0))
+    target_dir = "right"
 elif action in ["top-half"]:
-    top_wins = [w for w in candidates if (w["frame"]["y"] + w["frame"]["h"] / 2.0) < cur_cy - 20]
-    target = min(top_wins, key=lambda w: (w["frame"]["y"] + w["frame"]["h"] / 2.0)) if top_wins else min(candidates, key=lambda w: (w["frame"]["y"] + w["frame"]["h"] / 2.0))
+    target_dir = "top"
 elif action in ["bottom-half"]:
-    bottom_wins = [w for w in candidates if (w["frame"]["y"] + w["frame"]["h"] / 2.0) > cur_cy + 20]
-    target = max(bottom_wins, key=lambda w: (w["frame"]["y"] + w["frame"]["h"] / 2.0)) if bottom_wins else max(candidates, key=lambda w: (w["frame"]["y"] + w["frame"]["h"] / 2.0))
-
-if target and target["id"] != cur_id:
-    # Warp focused window into the target direction slot
-    res = subprocess.run(["yabai", "-m", "window", str(cur_id), "--warp", str(target["id"])], capture_output=True)
-    if res.returncode != 0:
-        subprocess.run(["yabai", "-m", "window", str(cur_id), "--swap", str(target["id"])], capture_output=True)
-    # Balance remaining windows in BSP tree
+    target_dir = "bottom"
+elif action == "center":
     subprocess.run(["yabai", "-m", "space", "--balance"], capture_output=True)
+    sys.exit(0)
+
+if not target_dir:
+    sys.exit(0)
+
+# 1. Cluster all other windows together into other_ids[0]
+lead_other = other_ids[0]
+for oid in other_ids[1:]:
+    subprocess.run(["yabai", "-m", "window", str(oid), "--warp", str(lead_other)], capture_output=True)
+subprocess.run(["yabai", "-m", "space", "--balance"], capture_output=True)
+
+# 2. Find who is solitary (occupying an entire half)
+s2 = json.loads(subprocess.check_output(["yabai", "-m", "query", "--windows", "--space"]))
+managed_s2 = [w for w in s2 if w["id"] in [m["id"] for m in managed]]
+solitary = max(managed_s2, key=lambda w: w["frame"]["w"] * w["frame"]["h"])
+if solitary["id"] != cur_id:
+    subprocess.run(["yabai", "-m", "window", str(cur_id), "--swap", str(solitary["id"])], capture_output=True)
+    subprocess.run(["yabai", "-m", "space", "--balance"], capture_output=True)
+
+# 3. Orient root split axis
+s3 = json.loads(subprocess.check_output(["yabai", "-m", "query", "--windows", "--space"]))
+c3 = next(w for w in s3 if w["id"] == cur_id)
+o3 = [w for w in s3 if w["id"] in other_ids]
+
+cur_cx = c3["frame"]["x"] + c3["frame"]["w"] / 2.0
+cur_cy = c3["frame"]["y"] + c3["frame"]["h"] / 2.0
+other_cx = sum(w["frame"]["x"] + w["frame"]["w"] / 2.0 for w in o3) / len(o3)
+other_cy = sum(w["frame"]["y"] + w["frame"]["h"] / 2.0 for w in o3) / len(o3)
+
+dx = abs(cur_cx - other_cx)
+dy = abs(cur_cy - other_cy)
+
+if target_dir in ["left", "right"] and dx < dy:
+    subprocess.run(["yabai", "-m", "space", "--rotate", "90"], capture_output=True)
+    subprocess.run(["yabai", "-m", "space", "--balance"], capture_output=True)
+elif target_dir in ["top", "bottom"] and dy < dx:
+    subprocess.run(["yabai", "-m", "space", "--rotate", "90"], capture_output=True)
+    subprocess.run(["yabai", "-m", "space", "--balance"], capture_output=True)
+
+# 4. Check if cur_id is on target side
+s4 = json.loads(subprocess.check_output(["yabai", "-m", "query", "--windows", "--space"]))
+c4 = next(w for w in s4 if w["id"] == cur_id)
+o4 = [w for w in s4 if w["id"] in other_ids]
+cur_cx = c4["frame"]["x"] + c4["frame"]["w"] / 2.0
+cur_cy = c4["frame"]["y"] + c4["frame"]["h"] / 2.0
+other_cx = sum(w["frame"]["x"] + w["frame"]["w"] / 2.0 for w in o4) / len(o4)
+other_cy = sum(w["frame"]["y"] + w["frame"]["h"] / 2.0 for w in o4) / len(o4)
+
+is_on_target = (
+    (target_dir == "left" and cur_cx < other_cx) or
+    (target_dir == "right" and cur_cx > other_cx) or
+    (target_dir == "top" and cur_cy < other_cy) or
+    (target_dir == "bottom" and cur_cy > other_cy)
+)
+
+if not is_on_target:
+    cluster_lead = o4[0]["id"]
+    subprocess.run(["yabai", "-m", "window", str(cur_id), "--swap", str(cluster_lead)], capture_output=True)
+    for w in o4[1:]:
+        subprocess.run(["yabai", "-m", "window", str(w["id"]), "--warp", str(cluster_lead)], capture_output=True)
+    subprocess.run(["yabai", "-m", "space", "--balance"], capture_output=True)
+
+# 5. Keep focus on cur_id
+subprocess.run(["yabai", "-m", "window", "--focus", str(cur_id)], capture_output=True)
 PYEOF
   exit 0
 fi

@@ -36,62 +36,65 @@ abs() {
   fi
 }
 
+# Helper: always move first, then resize, so screen edges never constrain resize
+apply_geometry() {
+  target_x=$1
+  target_y=$2
+  target_w=$3
+  target_h=$4
+  yabai -m window --move abs:$target_x:$target_y
+  yabai -m window --resize abs:$target_w:$target_h
+}
+
 case "$ACTION" in
   "left-half")
     w=$(( (dw - GAP * 3) / 2 ))
     h=$(( USABLE_H - GAP ))
     x=$(( dx + GAP ))
     y=$(( USABLE_Y ))
-    yabai -m window --resize abs:$w:$h
-    yabai -m window --move abs:$x:$y
+    apply_geometry $x $y $w $h
     ;;
   "right-half")
     w=$(( (dw - GAP * 3) / 2 ))
     h=$(( USABLE_H - GAP ))
     x=$(( dx + GAP * 2 + w ))
     y=$(( USABLE_Y ))
-    yabai -m window --resize abs:$w:$h
-    yabai -m window --move abs:$x:$y
+    apply_geometry $x $y $w $h
     ;;
   "top-half")
     w=$(( dw - GAP * 2 ))
     h=$(( (USABLE_H - GAP * 2) / 2 ))
     x=$(( dx + GAP ))
     y=$(( USABLE_Y ))
-    yabai -m window --resize abs:$w:$h
-    yabai -m window --move abs:$x:$y
+    apply_geometry $x $y $w $h
     ;;
   "bottom-half")
     w=$(( dw - GAP * 2 ))
     h=$(( (USABLE_H - GAP * 2) / 2 ))
     x=$(( dx + GAP ))
     y=$(( USABLE_Y + h + GAP ))
-    yabai -m window --resize abs:$w:$h
-    yabai -m window --move abs:$x:$y
+    apply_geometry $x $y $w $h
     ;;
   "first-third")
     w=$(( (dw - GAP * 4) / 3 ))
     h=$(( USABLE_H - GAP ))
     x=$(( dx + GAP ))
     y=$(( USABLE_Y ))
-    yabai -m window --resize abs:$w:$h
-    yabai -m window --move abs:$x:$y
+    apply_geometry $x $y $w $h
     ;;
   "center-third")
     w=$(( (dw - GAP * 4) / 3 ))
     h=$(( USABLE_H - GAP ))
     x=$(( dx + GAP * 2 + w ))
     y=$(( USABLE_Y ))
-    yabai -m window --resize abs:$w:$h
-    yabai -m window --move abs:$x:$y
+    apply_geometry $x $y $w $h
     ;;
   "last-third")
     w=$(( (dw - GAP * 4) / 3 ))
     h=$(( USABLE_H - GAP ))
     x=$(( dx + GAP * 3 + w * 2 ))
     y=$(( USABLE_Y ))
-    yabai -m window --resize abs:$w:$h
-    yabai -m window --move abs:$x:$y
+    apply_geometry $x $y $w $h
     ;;
   "two-thirds"|"first-two-thirds"|"cycle-two-thirds")
     unit=$(( (dw - GAP * 4) / 3 ))
@@ -102,7 +105,6 @@ case "$ACTION" in
     
     # Check if currently near left two-thirds or right two-thirds
     diff_left=$(abs $(( cur_x - x_left )))
-    diff_right=$(abs $(( cur_x - x_right )))
     diff_w=$(abs $(( cur_w - w )))
     
     if [ "$diff_w" -le 30 ] && [ "$diff_left" -le 30 ]; then
@@ -113,8 +115,7 @@ case "$ACTION" in
       x=$x_left
     fi
     y=$(( USABLE_Y ))
-    yabai -m window --resize abs:$w:$h
-    yabai -m window --move abs:$x:$y
+    apply_geometry $x $y $w $h
     ;;
   "last-two-thirds")
     unit=$(( (dw - GAP * 4) / 3 ))
@@ -122,28 +123,25 @@ case "$ACTION" in
     h=$(( USABLE_H - GAP ))
     x=$(( dx + GAP * 2 + unit ))
     y=$(( USABLE_Y ))
-    yabai -m window --resize abs:$w:$h
-    yabai -m window --move abs:$x:$y
+    apply_geometry $x $y $w $h
     ;;
   "maximize")
     w=$(( dw - GAP * 2 ))
     h=$(( USABLE_H - GAP ))
     x=$(( dx + GAP ))
     y=$(( USABLE_Y ))
-    yabai -m window --resize abs:$w:$h
-    yabai -m window --move abs:$x:$y
+    apply_geometry $x $y $w $h
     ;;
   "center")
     w=$(echo "$win" | jq '.frame.w | floor')
     h=$(echo "$win" | jq '.frame.h | floor')
     x=$(( dx + (dw - w) / 2 ))
     y=$(( USABLE_Y + (USABLE_H - h) / 2 ))
-    yabai -m window --move abs:$x:$y
+    apply_geometry $x $y $w $h
     ;;
   "maximize-height")
     w=$(echo "$win" | jq '.frame.w | floor')
     h=$(( USABLE_H - GAP ))
-    yabai -m window --resize abs:$w:$h
-    yabai -m window --move abs:$cur_x:$USABLE_Y
+    apply_geometry $cur_x $USABLE_Y $w $h
     ;;
 esac
